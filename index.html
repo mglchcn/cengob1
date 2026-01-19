@@ -1,672 +1,207 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>S.I.G.E.P. | Dashboard Total</title>
+    <title>S.I.G.E.P. | Dashboard Ejecutivo</title>
+    
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
     
-    <style>
-        :root {
-            --primary: #1e3a8a; --primary-light: #eff6ff;
-            --secondary: #64748b;
-            --success: #10b981; --warning: #f59e0b; --danger: #ef4444;
-            --bg: #f8fafc; --card-bg: #ffffff;
-            --border: #e2e8f0;
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: #0f172a; padding-bottom: 120px; }
-
-        /* UI COMPONENTS */
-        .navbar {
-            background: white; border-bottom: 1px solid var(--border); padding: 0 32px;
-            display: flex; justify-content: space-between; align-items: center; height: 64px;
-            position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        }
-        .brand { font-weight: 800; font-size: 1.25rem; color: var(--primary); display: flex; align-items: center; gap: 8px; }
-        
-        .tabs { display: flex; gap: 20px; height: 100%; }
-        .tab-btn {
-            background: none; border: none; height: 100%; padding: 0 10px;
-            font-size: 0.9rem; font-weight: 500; color: var(--secondary); cursor: pointer; position: relative;
-        }
-        .tab-btn.active { color: var(--primary); font-weight: 700; }
-        .tab-btn.active::after {
-            content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 3px; background: var(--primary);
-        }
-
-        .container { padding: 32px; max-width: 1400px; margin: 0 auto; animation: fadeIn 0.3s ease; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-        .hidden { display: none !important; }
-
-        /* GRIDS & CARDS */
-        .macro-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 30px; }
-        .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 24px; margin-bottom: 30px; }
-        
-        .kpi-card { 
-            background: white; padding: 20px; border-radius: 12px; border: 1px solid var(--border);
-            position: relative; overflow: hidden; transition: transform 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-        }
-        .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-        .kpi-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; }
-        .status-green::before { background: var(--success); }
-        .status-yellow::before { background: var(--warning); }
-        .status-red::before { background: var(--danger); }
-        
-        .kpi-val { font-size: 1.8rem; font-weight: 700; margin: 8px 0; color: #0f172a; }
-        .kpi-label { font-size:0.75rem; font-weight:700; color:var(--secondary); text-transform:uppercase; letter-spacing:0.5px; }
-        .badge { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
-
-        /* CENGOB LIST */
-        .priority-item { background: white; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 20px; }
-        .priority-header { 
-            padding: 24px; display: flex; gap: 16px; align-items: flex-start; cursor: pointer; transition: background 0.2s;
-        }
-        .priority-header:hover { background: #f8fafc; }
-        .p-icon { 
-            width: 48px; height: 48px; background: var(--primary-light); color: var(--primary);
-            border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0;
-        }
-        .progress-bar { height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; margin-top: 12px; }
-        .progress-fill { height: 100%; background: var(--primary); transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
-        
-        .subtasks-list { 
-            background: #f8fafc; border-top: 1px solid var(--border); padding: 0 24px 24px; display: none;
-        }
-        .subtasks-list.open { display: block; animation: slideDown 0.3s ease; }
-        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-
-        .subtask-row { 
-            display: flex; justify-content: space-between; align-items: center; 
-            padding: 12px 0; border-bottom: 1px solid #e2e8f0; font-size: 0.9rem;
-        }
-        .ministry-tag { font-size: 0.75rem; font-weight: 600; color: var(--primary); background: var(--primary-light); padding: 3px 8px; border-radius: 6px; margin-left: 8px; }
-
-        /* ADMIN PANEL & FORMS */
-        .auth-modal {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px);
-        }
-        .auth-box { background: white; padding: 30px; border-radius: 16px; width: 320px; text-align: center; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
-        
-        .admin-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 24px; }
-        .admin-section { margin-bottom: 24px; padding: 24px; border: 1px solid var(--border); border-radius: 12px; background: white; }
-        .admin-header { font-size: 1.1rem; font-weight: 700; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 12px; color: var(--primary); display:flex; justify-content:space-between; align-items:center;}
-        
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
-        .form-group label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--secondary); margin-bottom: 6px; }
-        input, select { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-family: inherit; font-size: 0.9rem; transition: border 0.2s; }
-        input:focus { border-color: var(--primary); outline: none; }
-        
-        .subtask-editor { background: #f1f5f9; padding: 16px; border-radius: 8px; margin-top: 12px; border: 1px solid var(--border); position: relative; }
-        .btn-action { background: var(--secondary); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 500;}
-        .btn-add-priority { background: var(--primary); color: white; border: none; padding: 12px; border-radius: 8px; width: 100%; font-weight: 600; cursor: pointer; margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 8px; }
-        .btn-del { color: var(--danger); background: white; border: 1px solid var(--border); font-weight: 700; width: 30px; height: 30px; border-radius: 6px; cursor: pointer; display:grid; place-items:center;}
-        .btn-del-priority { position: absolute; top: 10px; right: 10px; background: #fee2e2; color: #991b1b; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; }
-
-        /* Floating Actions */
-        .fab-container { position: fixed; bottom: 30px; right: 30px; display: flex; gap: 12px; z-index: 900; }
-        .fab-btn {
-            background: white; color: var(--primary); border: 1px solid var(--border);
-            padding: 12px 20px; border-radius: 50px; font-weight: 600;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1); cursor: pointer; display: flex; gap: 8px; align-items: center; transition: all 0.2s;
-        }
-        .fab-btn.primary { background: var(--primary); color: white; border: none; box-shadow: 0 4px 15px rgba(30, 58, 138, 0.3); }
-        .fab-btn:hover { transform: translateY(-3px); }
-
-    </style>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
+    <div id="loader" class="loading-overlay hidden">
+        <span class="material-icons-round spin">autorenew</span>
+        <p>Sincronizando con la nube...</p>
+    </div>
+
     <nav class="navbar">
         <div class="brand">
-            <span class="material-icons-round">analytics</span> S.I.G.E.P.
+            <span class="material-icons-round">analytics</span> S.I.G.E.P. | Live
         </div>
         <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('macro')">Macroeconomía</button>
-            <button class="tab-btn" onclick="switchTab('cengob')">Centro de Gobierno</button>
-            <button class="tab-btn" onclick="checkAuth()">🔐 Gestión de Datos</button>
+            <button class="tab-btn active" onclick="app.switchTab('macro')">Macroeconomía</button>
+            <button class="tab-btn" onclick="app.switchTab('cengob')">Centro de Gobierno</button>
+            <button class="tab-btn" onclick="app.checkAuth()">🔐 Gestión</button>
         </div>
+        <button class="icon-btn" onclick="document.getElementById('configModal').classList.toggle('hidden')">
+            <span class="material-icons-round">settings</span>
+        </button>
     </nav>
 
-    <div id="authModal" class="auth-modal hidden">
-        <div class="auth-box">
-            <h3 style="margin-bottom: 10px; color:var(--primary);">Acceso Administrativo</h3>
-            <p style="font-size: 0.85rem; color: var(--secondary); margin-bottom: 20px;">Edición de variables sensibles</p>
-            <input type="password" id="adminPass" placeholder="Contraseña (admin123)" style="margin-bottom: 20px; text-align:center;">
-            <div style="display: flex; gap: 10px;">
-                <button onclick="closeAuth()" style="flex:1; padding: 10px; border: 1px solid var(--border); background: white; border-radius: 8px; cursor:pointer;">Cancelar</button>
-                <button onclick="verifyAuth()" style="flex:1; padding: 10px; border: none; background: var(--primary); color: white; border-radius: 8px; cursor:pointer; font-weight:600;">Entrar</button>
+    <div id="configModal" class="modal hidden">
+        <div class="modal-content config-box">
+            <h3>Conexión Google Sheets</h3>
+            <p class="subtitle">Ingresa los enlaces públicos (CSV) y el Script (Web App).</p>
+            
+            <label>URL Hoja MACRO (CSV Publicado)</label>
+            <input type="text" id="url-macro" placeholder="https://docs.google.com/...output=csv">
+            
+            <label>URL Hoja CENGOB (CSV Publicado)</label>
+            <input type="text" id="url-cengob" placeholder="https://docs.google.com/...output=csv">
+
+            <label>URL Google Apps Script (Web App /exec)</label>
+            <input type="text" id="url-script" placeholder="https://script.google.com/.../exec">
+            
+            <button onclick="app.saveConfig()" class="btn-primary full-width">Guardar Configuración</button>
+            <button onclick="app.loadDemoData()" class="btn-secondary full-width">Cargar Datos Demo</button>
+        </div>
+    </div>
+
+    <div id="authModal" class="modal hidden">
+        <div class="modal-content auth-box">
+            <h3>Acceso Administrativo</h3>
+            <p class="subtitle">Ingrese credenciales para editar datos sensibles.</p>
+            <input type="password" id="adminPass" placeholder="Contraseña (admin123)">
+            <div class="row gap-10">
+                <button onclick="document.getElementById('authModal').classList.add('hidden')" class="btn-secondary flex-1">Cancelar</button>
+                <button onclick="app.verifyAuth()" class="btn-primary flex-1">Entrar</button>
             </div>
         </div>
     </div>
 
-    <div id="macro-tab" class="container">
-        <div style="margin-bottom: 24px; display:flex; justify-content:space-between; align-items:end;">
-            <div>
-                <h1 style="font-size: 1.8rem; font-weight: 700; color:var(--primary);">Tablero Macroeconómico</h1>
-                <p style="color: var(--secondary);">Indicadores de estabilidad en tiempo real.</p>
+    <div class="container">
+        <div id="macro-tab" class="tab-content">
+            <div class="header-row">
+                <h1>Tablero Macroeconómico</h1>
+                <span class="badge gray">Estado: En Vivo</span>
             </div>
-            <div class="badge" style="background:#f1f5f9; color:var(--secondary);">Última act: Hoy</div>
-        </div>
 
-        <div class="macro-grid">
-            <div id="card-pib" class="kpi-card">
-                <div class="kpi-label">Crecimiento PIB</div>
-                <div id="disp-pib" class="kpi-val">--</div>
-                <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--secondary);">
-                    <span id="disp-pib-target">Meta: --</span>
-                    <span id="badge-pib" class="badge">--</span>
+            <div class="macro-grid">
+                <div id="card-pib" class="kpi-card">
+                    <div class="kpi-label">PIB Real</div>
+                    <div id="val-pib" class="kpi-val">--</div>
+                    <div class="kpi-footer">
+                        <span id="target-pib">Meta: --</span>
+                        <span id="badge-pib" class="badge">--</span>
+                    </div>
+                </div>
+                <div id="card-balanza" class="kpi-card">
+                    <div class="kpi-label">Balanza Comercial (M USD)</div>
+                    <div id="val-balanza" class="kpi-val">--</div>
+                    <div class="kpi-footer">
+                        <span>Acumulado anual</span>
+                        <span id="badge-balanza" class="badge">--</span>
+                    </div>
+                </div>
+                <div id="card-deficit" class="kpi-card">
+                    <div class="kpi-label">Déficit Fiscal (% PIB)</div>
+                    <div id="val-deficit" class="kpi-val">--</div>
+                    <div class="kpi-footer">
+                        <span id="target-deficit">Techo: --</span>
+                        <span id="badge-deficit" class="badge">--</span>
+                    </div>
+                </div>
+                <div id="card-brecha" class="kpi-card">
+                    <div class="kpi-label">Brecha Cambiaria</div>
+                    <div id="val-brecha" class="kpi-val">--</div>
+                    <div class="kpi-footer">
+                        <span>Oficial: <b id="val-oficial">--</b> | Paralelo: <b id="val-paralelo">--</b></span>
+                        <span id="badge-brecha" class="badge">--</span>
+                    </div>
                 </div>
             </div>
-            <div id="card-balanza" class="kpi-card">
-                <div class="kpi-label">Balanza Comercial</div>
-                <div id="disp-balanza" class="kpi-val">--</div>
-                <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--secondary);">
-                    <span>Millones USD</span>
-                    <span id="badge-balanza" class="badge">--</span>
-                </div>
-            </div>
-            <div id="card-deficit" class="kpi-card">
-                <div class="kpi-label">Déficit Fiscal (% PIB)</div>
-                <div id="disp-deficit" class="kpi-val">--</div>
-                <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--secondary);">
-                    <span id="disp-deficit-target">Techo: --</span>
-                    <span id="badge-deficit" class="badge">--</span>
-                </div>
-            </div>
-            <div id="card-brecha" class="kpi-card">
-                <div class="kpi-label">Brecha Cambiaria</div>
-                <div id="disp-brecha" class="kpi-val">--</div>
-                <div style="font-size:0.8rem; margin-bottom:4px; color:var(--secondary);">
-                    Oficial: <b id="disp-oficial" style="color:black;">--</b> | Paralelo: <b id="disp-paralelo" style="color:black;">--</b>
-                </div>
-                <span id="badge-brecha" class="badge">--</span>
-            </div>
-        </div>
 
-        <div class="charts-grid">
-            <div class="kpi-card" style="padding:24px;">
-                <h3 style="margin-bottom:20px; font-size:1rem; color:var(--primary);">Evolución de la Brecha (%)</h3>
-                <div style="height: 300px;"><canvas id="brechaChart"></canvas></div>
-            </div>
-            <div class="kpi-card" style="padding:24px;">
-                <h3 style="margin-bottom:20px; font-size:1rem; color:var(--primary);">Inflación por Categoría (IPC)</h3>
-                <div style="height: 300px;"><canvas id="ipcChart"></canvas></div>
-            </div>
-        </div>
-    </div>
-
-    <div id="cengob-tab" class="container hidden">
-        <div style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; background:white; padding:20px; border-radius:12px; border:1px solid var(--border);">
-            <div>
-                <h1 style="font-size: 1.5rem; font-weight: 700; color:var(--primary);">Agenda Presidencial</h1>
-                <p style="color: var(--secondary); font-size:0.9rem;">Seguimiento de cumplimiento DS N° 5500</p>
-            </div>
-            <div style="text-align: right;">
-                <div style="font-size: 0.8rem; color: var(--secondary); text-transform:uppercase; font-weight:600;">Avance Global</div>
-                <div id="global-progress" style="font-size: 2rem; font-weight: 800; color: var(--primary);">0%</div>
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <h3>Evolución Histórica Brecha (%)</h3>
+                    <div class="chart-container"><canvas id="chartBrecha"></canvas></div>
+                </div>
+                <div class="chart-card">
+                    <h3>Inflación por Categoría (IPC)</h3>
+                    <div class="chart-container"><canvas id="chartIPC"></canvas></div>
+                </div>
             </div>
         </div>
 
-        <div id="cengob-container">
+        <div id="cengob-tab" class="tab-content hidden">
+            <div class="header-card">
+                <div>
+                    <h1>Agenda Presidencial</h1>
+                    <p>Seguimiento de prioridades DS N° 5500</p>
+                </div>
+                <div class="text-right">
+                    <div class="subtitle">AVANCE GLOBAL</div>
+                    <div id="global-progress" class="big-number">0%</div>
+                </div>
             </div>
-    </div>
+            <div id="cengob-container"></div>
+        </div>
 
-    <div id="gestion-tab" class="container hidden">
-        <h1 style="font-size: 1.5rem; font-weight: 700; color:var(--primary); margin-bottom:24px;">Gestión de Datos Maestros</h1>
+        <div id="gestion-tab" class="tab-content hidden">
+            <h1 class="mb-20">Gestión de Datos Maestros</h1>
+            
+            <div class="admin-grid">
+                <div>
+                    <div class="admin-section">
+                        <div class="admin-header">
+                            <span>Variables Macroeconómicas</span>
+                            <span class="material-icons-round">trending_up</span>
+                        </div>
+                        <div class="row gap-10">
+                            <div class="input-group"><label>PIB Actual (%)</label><input type="number" id="in-pib" step="0.1"></div>
+                            <div class="input-group"><label>Meta PIB (%)</label><input type="number" id="in-pib-target" step="0.1"></div>
+                        </div>
+                        <div class="input-group mt-10"><label>Balanza Comercial</label><input type="number" id="in-balanza"></div>
+                        <div class="row gap-10 mt-10">
+                            <div class="input-group"><label>Déficit (%)</label><input type="number" id="in-deficit" step="0.1"></div>
+                            <div class="input-group"><label>Techo Déficit</label><input type="number" id="in-deficit-target" step="0.1"></div>
+                        </div>
+                        <div class="separator"></div>
+                        <div class="row gap-10">
+                            <div class="input-group"><label>Dólar Oficial</label><input type="number" id="in-oficial" step="0.01"></div>
+                            <div class="input-group"><label>Dólar Paralelo</label><input type="number" id="in-paralelo" step="0.01"></div>
+                        </div>
+                        <div class="input-group mt-10">
+                            <label>Histórico Brecha (CSV)</label>
+                            <input type="text" id="in-history" placeholder="30, 32, 40...">
+                        </div>
+                    </div>
 
-        <div class="admin-grid">
-            <div>
+                    <div class="admin-section">
+                        <div class="admin-header">
+                            <span>Inflación (IPC)</span>
+                            <span class="material-icons-round">shopping_cart</span>
+                        </div>
+                        <div class="row gap-10">
+                            <div class="input-group"><label>Alimentos</label><input type="number" id="in-ipc-0" step="0.1"></div>
+                            <div class="input-group"><label>Transporte</label><input type="number" id="in-ipc-1" step="0.1"></div>
+                        </div>
+                        <div class="row gap-10 mt-10">
+                            <div class="input-group"><label>Salud</label><input type="number" id="in-ipc-2" step="0.1"></div>
+                            <div class="input-group"><label>Educación</label><input type="number" id="in-ipc-3" step="0.1"></div>
+                        </div>
+                        <div class="input-group mt-10"><label>Vivienda</label><input type="number" id="in-ipc-4" step="0.1"></div>
+                    </div>
+                </div>
+
                 <div class="admin-section">
                     <div class="admin-header">
-                        <span>Variables Macroeconómicas</span>
-                        <span class="material-icons-round" style="font-size:1.2rem;">trending_up</span>
+                        <span>Prioridades y Tareas</span>
+                        <span class="material-icons-round">list_alt</span>
                     </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group"><label>PIB Actual (%)</label><input type="number" id="in-pib" step="0.1"></div>
-                        <div class="form-group"><label>Meta PIB (%)</label><input type="number" id="in-pib-target" step="0.1"></div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group"><label>Balanza (M USD)</label><input type="number" id="in-balanza"></div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group"><label>Déficit Fiscal (%)</label><input type="number" id="in-deficit" step="0.1"></div>
-                        <div class="form-group"><label>Techo Déficit (%)</label><input type="number" id="in-deficit-target" step="0.1"></div>
-                    </div>
-                    
-                    <hr style="border:0; border-top:1px solid var(--border); margin:15px 0;">
-                    
-                    <div class="form-row">
-                        <div class="form-group"><label>Dólar Oficial</label><input type="number" id="in-oficial" step="0.01"></div>
-                        <div class="form-group"><label>Dólar Paralelo</label><input type="number" id="in-paralelo" step="0.01"></div>
-                    </div>
-
-                    <div class="form-group" style="margin-top:15px;">
-                        <label>Histórico Brecha (Separado por comas)</label>
-                        <input type="text" id="in-history" placeholder="Ej: 30, 35, 40...">
-                    </div>
-                </div>
-
-                <div class="admin-section">
-                    <div class="admin-header">
-                        <span>Inflación (IPC)</span>
-                        <span class="material-icons-round" style="font-size:1.2rem;">shopping_cart</span>
-                    </div>
-                    <div id="ipc-inputs">
-                        <div class="form-row">
-                            <div class="form-group"><label>Alimentos</label><input type="number" id="in-ipc-0" step="0.1"></div>
-                            <div class="form-group"><label>Transporte</label><input type="number" id="in-ipc-1" step="0.1"></div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group"><label>Salud</label><input type="number" id="in-ipc-2" step="0.1"></div>
-                            <div class="form-group"><label>Educación</label><input type="number" id="in-ipc-3" step="0.1"></div>
-                        </div>
-                        <div class="form-group"><label>Vivienda</label><input type="number" id="in-ipc-4" step="0.1"></div>
-                    </div>
+                    <div id="admin-cengob-list"></div>
+                    <button class="btn-primary full-width mt-10" onclick="app.addPriority()">
+                        <span class="material-icons-round icon-left">add_circle</span> Nueva Prioridad
+                    </button>
                 </div>
             </div>
 
-            <div class="admin-section">
-                <div class="admin-header">
-                    <span>Prioridades y Sub-tareas</span>
-                    <span class="material-icons-round" style="font-size:1.2rem;">list_alt</span>
-                </div>
-                <div id="admin-cengob-list">
-                    </div>
-                <button class="btn-add-priority" onclick="addPriority()">
-                    <span class="material-icons-round">add_circle</span> Añadir Nueva Prioridad
+            <div class="fab-container">
+                <button class="fab-btn" onclick="document.getElementById('csvInput').click()">Importar CSV</button>
+                <button class="fab-btn" onclick="app.exportToCSV()">Exportar CSV</button>
+                <button class="fab-btn primary" onclick="app.saveAllData()">
+                    <span class="material-icons-round icon-left">save</span> Guardar y Sincronizar
                 </button>
             </div>
+            <input type="file" id="csvInput" class="hidden" accept=".csv" onchange="app.importFromCSV(this)">
         </div>
-
-        <div class="fab-container">
-            <button class="fab-btn" onclick="document.getElementById('csvInput').click()">
-                <span class="material-icons-round">file_upload</span> Importar
-            </button>
-            <button class="fab-btn" onclick="exportToCSV()">
-                <span class="material-icons-round">file_download</span> Exportar
-            </button>
-            <button class="fab-btn primary" onclick="saveAllData()">
-                <span class="material-icons-round">save</span> Guardar
-            </button>
-        </div>
-        
-        <input type="file" id="csvInput" style="display:none" accept=".csv" onchange="importFromCSV(this)">
     </div>
 
-    <script>
-        // --- ESTADO INICIAL DE DATOS ---
-        let appData = {
-            auth: false,
-            macro: {
-                pib: 2.1, pibTarget: 3.7,
-                balanza: -450,
-                deficit: -8.2, deficitTarget: -7.5,
-                oficial: 6.96, paralelo: 10.50,
-                ipc: [5.2, 3.1, 1.8, 0.5, 2.4],
-                brechaHistory: [30, 32, 35, 42, 48, 51]
-            },
-            cengob: [
-                {
-                    title: "Economía para todos", desc: "Estabilidad y fomento empresarial.", icon: "paid",
-                    subtasks: [
-                        { name: "Ley Fomento", ministry: "Min. Economía", progress: 80 },
-                        { name: "Créditos SiBolivia", ministry: "Min. Producción", progress: 50 }
-                    ]
-                },
-                {
-                    title: "Bolivia 50/50", desc: "Pacto Fiscal y Autonomías.", icon: "balance",
-                    subtasks: [
-                        { name: "Diálogo Fiscal", ministry: "Vicemin. Autonomías", progress: 20 },
-                        { name: "Censo Digital", ministry: "INE", progress: 40 }
-                    ]
-                }
-            ]
-        };
-
-        // --- AUTH & NAV ---
-        function checkAuth() {
-            if (appData.auth) switchTab('gestion');
-            else document.getElementById('authModal').classList.remove('hidden');
-        }
-
-        function verifyAuth() {
-            if (document.getElementById('adminPass').value === 'admin123') {
-                appData.auth = true;
-                document.getElementById('authModal').classList.add('hidden');
-                switchTab('gestion');
-            } else alert('Contraseña incorrecta');
-        }
-
-        function closeAuth() { document.getElementById('authModal').classList.add('hidden'); }
-
-        function switchTab(tabId) {
-            document.querySelectorAll('.container').forEach(el => el.classList.add('hidden'));
-            document.getElementById(tabId + '-tab').classList.remove('hidden');
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            
-            const buttons = document.querySelectorAll('.tab-btn');
-            if(tabId === 'macro') buttons[0].classList.add('active');
-            if(tabId === 'cengob') buttons[1].classList.add('active');
-            if(tabId === 'gestion') {
-                buttons[2].classList.add('active');
-                renderAdminPanel();
-            }
-        }
-
-        // --- RENDER VISUAL ---
-        function renderMacro() {
-            const m = appData.macro;
-            
-            document.getElementById('disp-pib').innerText = m.pib + '%';
-            document.getElementById('disp-pib-target').innerText = 'Meta: ' + m.pibTarget + '%';
-            updateBadge('card-pib', 'badge-pib', m.pib, m.pibTarget, true); 
-
-            document.getElementById('disp-balanza').innerText = '$' + m.balanza + 'M';
-            updateBadge('card-balanza', 'badge-balanza', m.balanza, 0, true);
-
-            document.getElementById('disp-deficit').innerText = m.deficit + '%';
-            document.getElementById('disp-deficit-target').innerText = 'Techo: ' + m.deficitTarget + '%';
-            updateBadge('card-deficit', 'badge-deficit', m.deficit, m.deficitTarget, true);
-
-            const brecha = ((m.paralelo - m.oficial) / m.oficial * 100).toFixed(1);
-            document.getElementById('disp-brecha').innerText = brecha + '%';
-            document.getElementById('disp-oficial').innerText = m.oficial;
-            document.getElementById('disp-paralelo').innerText = m.paralelo;
-            updateBadge('card-brecha', 'badge-brecha', parseFloat(brecha), 30, false);
-
-            renderCharts();
-        }
-
-        function updateBadge(cardId, badgeId, val, target, higherIsBetter) {
-            const card = document.getElementById(cardId);
-            const badge = document.getElementById(badgeId);
-            let status = 'red'; let text = 'Alerta';
-
-            if (higherIsBetter) {
-                if (val >= target) { status = 'green'; text = 'Cumple'; }
-                else if (val >= target - 1.5) { status = 'yellow'; text = 'Riesgo'; }
-            } else {
-                if (val <= 10) { status = 'green'; text = 'Estable'; }
-                else if (val <= target) { status = 'yellow'; text = 'Volátil'; }
-            }
-
-            card.className = `kpi-card status-${status}`;
-            badge.className = `badge status-${status}`;
-            badge.style.background = status === 'green' ? '#dcfce7' : (status === 'yellow' ? '#fef3c7' : '#fee2e2');
-            badge.style.color = status === 'green' ? '#166534' : (status === 'yellow' ? '#92400e' : '#991b1b');
-            badge.innerText = text;
-        }
-
-        let chartBrecha, chartIPC;
-        function renderCharts() {
-            const ctxB = document.getElementById('brechaChart').getContext('2d');
-            if (chartBrecha) chartBrecha.destroy();
-            chartBrecha = new Chart(ctxB, {
-                type: 'line',
-                data: {
-                    labels: ['Ago', 'Sep', 'Oct', 'Nov', 'Dic', 'Actual'],
-                    datasets: [{
-                        label: 'Brecha %', data: appData.macro.brechaHistory,
-                        borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', fill: true, tension: 0.4
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-            });
-
-            const ctxI = document.getElementById('ipcChart').getContext('2d');
-            if (chartIPC) chartIPC.destroy();
-            chartIPC = new Chart(ctxI, {
-                type: 'bar',
-                data: {
-                    labels: ['Alimentos', 'Transp.', 'Salud', 'Educación', 'Vivienda'],
-                    datasets: [{ label: '%', data: appData.macro.ipc, backgroundColor: '#1e3a8a', borderRadius: 4 }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-            });
-        }
-
-        function renderCengob() {
-            const container = document.getElementById('cengob-container');
-            container.innerHTML = '';
-            let totalProg = 0, count = 0;
-
-            appData.cengob.forEach((p, idx) => {
-                let pProg = 0;
-                if(p.subtasks.length > 0) {
-                    pProg = Math.round(p.subtasks.reduce((acc, c) => acc + c.progress, 0) / p.subtasks.length);
-                }
-                totalProg += pProg; count++;
-
-                let subHtml = p.subtasks.map(t => `
-                    <div class="subtask-row">
-                        <div>
-                            <span class="material-icons-round" style="font-size:1rem; vertical-align:middle; margin-right:5px; color:var(--primary);">arrow_right</span>
-                            ${t.name} <span class="ministry-tag">${t.ministry}</span>
-                        </div>
-                        <div style="font-weight:700; color:${t.progress<50?'var(--danger)':'var(--success)'}">${t.progress}%</div>
-                    </div>`).join('');
-
-                container.innerHTML += `
-                    <div class="priority-item">
-                        <div class="priority-header" onclick="document.getElementById('sub-${idx}').classList.toggle('open')">
-                            <div class="p-icon"><span class="material-icons-round">${p.icon}</span></div>
-                            <div style="flex:1;">
-                                <div style="display:flex; justify-content:space-between;">
-                                    <h3 style="font-size:1.1rem; font-weight:700;">${p.title}</h3>
-                                    <span style="font-weight:800; color:var(--primary);">${pProg}%</span>
-                                </div>
-                                <div style="font-size:0.9rem; color:var(--secondary);">${p.desc}</div>
-                                <div class="progress-bar"><div class="progress-fill" style="width:${pProg}%"></div></div>
-                            </div>
-                        </div>
-                        <div id="sub-${idx}" class="subtasks-list">${subHtml || '<div style="padding:10px; color:#aaa;">Sin sub-tareas</div>'}</div>
-                    </div>`;
-            });
-            document.getElementById('global-progress').innerText = count > 0 ? Math.round(totalProg / count) + '%' : '0%';
-        }
-
-        // --- ADMIN PANEL ---
-        function renderAdminPanel() {
-            const m = appData.macro;
-            document.getElementById('in-pib').value = m.pib;
-            document.getElementById('in-pib-target').value = m.pibTarget;
-            document.getElementById('in-balanza').value = m.balanza;
-            document.getElementById('in-deficit').value = m.deficit;
-            document.getElementById('in-deficit-target').value = m.deficitTarget;
-            document.getElementById('in-oficial').value = m.oficial;
-            document.getElementById('in-paralelo').value = m.paralelo;
-            document.getElementById('in-history').value = m.brechaHistory.join(',');
-
-            for(let i=0; i<5; i++) document.getElementById(`in-ipc-${i}`).value = m.ipc[i];
-
-            const list = document.getElementById('admin-cengob-list');
-            list.innerHTML = '';
-            appData.cengob.forEach((p, pIdx) => {
-                let tasksHtml = p.subtasks.map((t, tIdx) => `
-                    <div style="display:grid; grid-template-columns:2fr 1fr 1fr auto; gap:5px; margin-bottom:5px;">
-                        <input type="text" id="t-n-${pIdx}-${tIdx}" value="${t.name}">
-                        <input type="text" id="t-m-${pIdx}-${tIdx}" value="${t.ministry}">
-                        <input type="number" id="t-p-${pIdx}-${tIdx}" value="${t.progress}">
-                        <button class="btn-del" onclick="delTask(${pIdx},${tIdx})">×</button>
-                    </div>`).join('');
-
-                list.innerHTML += `
-                    <div class="subtask-editor" style="background:white; margin-bottom:20px;">
-                        <button class="btn-del-priority" onclick="delPriority(${pIdx})">Eliminar Prioridad</button>
-                        <div style="font-weight:700; color:var(--primary); margin-bottom:10px;">Prioridad #${pIdx+1}</div>
-                        <div class="form-row">
-                            <input type="text" id="p-title-${pIdx}" value="${p.title}" placeholder="Título">
-                            <input type="text" id="p-icon-${pIdx}" value="${p.icon}" placeholder="Icono (ej: paid)">
-                        </div>
-                        <input type="text" id="p-desc-${pIdx}" value="${p.desc}" style="margin-bottom:10px;" placeholder="Descripción">
-                        
-                        <div style="background:#f8fafc; padding:10px; border-radius:8px;">
-                            ${tasksHtml}
-                            <button class="btn-action" onclick="addTask(${pIdx})">+ Sub-tarea</button>
-                        </div>
-                    </div>`;
-            });
-        }
-
-        // --- ACTIONS ---
-        function addPriority() {
-            appData.cengob.push({
-                title: "Nueva Prioridad",
-                desc: "Descripción de la meta...",
-                icon: "flag",
-                subtasks: []
-            });
-            renderAdminPanel();
-        }
-
-        function delPriority(idx) {
-            if(confirm('¿Eliminar esta prioridad y todas sus tareas?')) {
-                appData.cengob.splice(idx, 1);
-                renderAdminPanel();
-            }
-        }
-
-        function addTask(pIdx) { appData.cengob[pIdx].subtasks.push({name:'Nueva Tarea', ministry:'Min.', progress:0}); renderAdminPanel(); }
-        function delTask(pIdx, tIdx) { appData.cengob[pIdx].subtasks.splice(tIdx, 1); renderAdminPanel(); }
-
-        function saveAllData() {
-            // Save Macro
-            const m = appData.macro;
-            m.pib = parseFloat(document.getElementById('in-pib').value);
-            m.pibTarget = parseFloat(document.getElementById('in-pib-target').value);
-            m.balanza = parseFloat(document.getElementById('in-balanza').value);
-            m.deficit = parseFloat(document.getElementById('in-deficit').value);
-            m.deficitTarget = parseFloat(document.getElementById('in-deficit-target').value);
-            m.oficial = parseFloat(document.getElementById('in-oficial').value);
-            m.paralelo = parseFloat(document.getElementById('in-paralelo').value);
-            m.brechaHistory = document.getElementById('in-history').value.split(',').map(Number);
-            
-            for(let i=0; i<5; i++) m.ipc[i] = parseFloat(document.getElementById(`in-ipc-${i}`).value);
-
-            // Save Cengob
-            appData.cengob.forEach((p, pIdx) => {
-                p.title = document.getElementById(`p-title-${pIdx}`).value;
-                p.icon = document.getElementById(`p-icon-${pIdx}`).value;
-                p.desc = document.getElementById(`p-desc-${pIdx}`).value;
-                p.subtasks.forEach((t, tIdx) => {
-                    t.name = document.getElementById(`t-n-${pIdx}-${tIdx}`).value;
-                    t.ministry = document.getElementById(`t-m-${pIdx}-${tIdx}`).value;
-                    t.progress = parseFloat(document.getElementById(`t-p-${pIdx}-${tIdx}`).value);
-                });
-            });
-
-            renderMacro();
-            renderCengob();
-            alert('Datos Guardados Correctamente');
-            switchTab('cengob');
-        }
-
-        // --- CSV IMPORT / EXPORT ---
-        function exportToCSV() {
-            let rows = [];
-            // Macro rows
-            rows.push(`MACRO,PIB,${appData.macro.pib}`);
-            rows.push(`MACRO,PIB_TARGET,${appData.macro.pibTarget}`);
-            rows.push(`MACRO,BALANZA,${appData.macro.balanza}`);
-            rows.push(`MACRO,DEFICIT,${appData.macro.deficit}`);
-            rows.push(`MACRO,DEFICIT_TARGET,${appData.macro.deficitTarget}`);
-            rows.push(`MACRO,OFICIAL,${appData.macro.oficial}`);
-            rows.push(`MACRO,PARALELO,${appData.macro.paralelo}`);
-            rows.push(`MACRO,IPC,${appData.macro.ipc.join(';')}`);
-            rows.push(`MACRO,HISTORY,${appData.macro.brechaHistory.join(';')}`);
-            
-            // Cengob rows (Priority structure + Tasks)
-            appData.cengob.forEach((p, idx) => {
-                // Save priority structure: PRIORITY, idx, title, desc, icon
-                rows.push(`PRIORITY,${idx},${p.title},${p.desc},${p.icon}`);
-                
-                // Save subtasks: TASK, pIdx, tIdx, name, ministry, progress
-                p.subtasks.forEach((t, tIdx) => {
-                    rows.push(`TASK,${idx},${tIdx},${t.name},${t.ministry},${t.progress}`);
-                });
-            });
-
-            let csvContent = "data:text/csv;charset=utf-8," + rows.join("\n");
-            let encodedUri = encodeURI(csvContent);
-            let link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", "dashboard_full_data.csv");
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-
-        function importFromCSV(input) {
-            let file = input.files[0];
-            let reader = new FileReader();
-            reader.onload = function(e) {
-                let text = e.target.result;
-                let lines = text.split('\n');
-                
-                // Reset CENGOB Array to avoid duplicates
-                appData.cengob = [];
-
-                lines.forEach(line => {
-                    let cols = line.split(',');
-                    // Load Macro
-                    if(cols[0] === 'MACRO') {
-                        if(cols[1] === 'PIB') appData.macro.pib = parseFloat(cols[2]);
-                        if(cols[1] === 'PIB_TARGET') appData.macro.pibTarget = parseFloat(cols[2]);
-                        if(cols[1] === 'BALANZA') appData.macro.balanza = parseFloat(cols[2]);
-                        if(cols[1] === 'DEFICIT') appData.macro.deficit = parseFloat(cols[2]);
-                        if(cols[1] === 'DEFICIT_TARGET') appData.macro.deficitTarget = parseFloat(cols[2]);
-                        if(cols[1] === 'OFICIAL') appData.macro.oficial = parseFloat(cols[2]);
-                        if(cols[1] === 'PARALELO') appData.macro.paralelo = parseFloat(cols[2]);
-                        if(cols[1] === 'IPC') appData.macro.ipc = cols[2].split(';').map(Number);
-                        if(cols[1] === 'HISTORY') appData.macro.brechaHistory = cols[2].split(';').map(Number);
-                    }
-                    
-                    // Rebuild Priorities
-                    if(cols[0] === 'PRIORITY') {
-                        let idx = parseInt(cols[1]);
-                        appData.cengob[idx] = {
-                            title: cols[2],
-                            desc: cols[3],
-                            icon: cols[4],
-                            subtasks: []
-                        };
-                    }
-                    
-                    // Fill Subtasks
-                    if(cols[0] === 'TASK') {
-                        let pIdx = parseInt(cols[1]);
-                        if(appData.cengob[pIdx]) {
-                            appData.cengob[pIdx].subtasks.push({
-                                name: cols[3],
-                                ministry: cols[4],
-                                progress: parseFloat(cols[5])
-                            });
-                        }
-                    }
-                });
-                renderMacro();
-                renderCengob();
-                renderAdminPanel();
-                alert('Datos Importados Correctamente');
-            };
-            reader.readAsText(file);
-        }
-
-        // INIT
-        document.addEventListener('DOMContentLoaded', () => {
-            renderMacro();
-            renderCengob();
-        });
-
-    </script>
+    <script src="script.js"></script>
 </body>
 </html>
