@@ -3,28 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>S.I.G.E.P. | Dashboard Unificado</title>
+    <title>S.I.G.E.P. | Centro de Gobierno</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css">
-</head>
+    <link rel="stylesheet" href="styles.css"> </head>
 <body>
 
     <div id="loader" class="loading-overlay hidden">
-        <span class="material-icons-round spin">autorenew</span>
-        <p>Sincronizando datos...</p>
+        <span class="material-icons-round spin">cloud_upload</span>
+        <p>Guardando en Google Sheets...</p>
     </div>
 
     <nav class="navbar">
         <div class="brand">
-            <span class="material-icons-round">analytics</span> S.I.G.E.P. | CENGOB
+            <span class="material-icons-round">account_balance</span> S.I.G.E.P. | Presidencia
         </div>
         <div class="tabs">
             <button class="tab-btn active" onclick="app.switchTab('macro')">Macroeconomía</button>
             <button class="tab-btn" onclick="app.switchTab('cengob')">Agenda Presidencial</button>
-            <button class="tab-btn" onclick="app.checkAuth()">🔐 Gestión</button>
+            <button class="tab-btn" onclick="app.checkAuth()">🔐 Editar Datos</button>
         </div>
         <button class="icon-btn" onclick="document.getElementById('configModal').classList.toggle('hidden')">
             <span class="material-icons-round">settings</span>
@@ -33,23 +31,16 @@
 
     <div id="configModal" class="modal hidden">
         <div class="modal-content config-box">
-            <h3>Conexión Google Sheets</h3>
-            <p class="subtitle">Ingresa el enlace CSV publicado de tu Hoja Maestra.</p>
-            
-            <label>URL Hoja Maestra (CSV)</label>
-            <input type="text" id="url-master" placeholder="https://docs.google.com/.../pub?output=csv">
-            
-            <div class="row gap-10 mt-10">
-                <button onclick="app.saveConfig()" class="btn-primary full-width">Guardar</button>
-                <button onclick="app.loadDefaultData()" class="btn-secondary full-width">Restaurar Datos CENGOB</button>
-            </div>
-            <p style="font-size:0.7rem; color:#aaa; margin-top:10px;">*Asegúrate que la hoja tenga las columnas: TIPO, CLAVE, VALOR, META_DESC, EXTRA</p>
+            <h3>Conexión Nube</h3>
+            <p class="subtitle">Pega aquí la URL de tu Google Apps Script (Web App)</p>
+            <input type="text" id="url-script" placeholder="https://script.google.com/.../exec">
+            <button onclick="app.saveConfig()" class="btn-primary full-width mt-10">Guardar Enlace</button>
         </div>
     </div>
 
     <div id="authModal" class="modal hidden">
         <div class="modal-content auth-box">
-            <h3>Acceso Admin</h3>
+            <h3>Modo Edición</h3>
             <input type="password" id="adminPass" placeholder="Contraseña (admin123)">
             <div class="row gap-10 mt-10">
                 <button onclick="document.getElementById('authModal').classList.add('hidden')" class="btn-secondary flex-1">Cancelar</button>
@@ -61,19 +52,14 @@
     <div class="container">
         <div id="macro-tab" class="tab-content">
             <div class="header-row">
-                <h1>Monitor Macroeconómico</h1>
-                <span class="badge gray">Datos: En Vivo</span>
+                <h1>Monitor de Estabilidad</h1>
+                <span class="badge gray">Fuente: Min. Economía / BCB</span>
             </div>
             <div class="macro-grid">
                 <div id="card-pib" class="kpi-card">
                     <div class="kpi-label">PIB Real</div>
                     <div id="val-pib" class="kpi-val">--</div>
                     <div class="kpi-footer"><span id="target-pib">Meta: --</span><span id="badge-pib" class="badge">--</span></div>
-                </div>
-                <div id="card-balanza" class="kpi-card">
-                    <div class="kpi-label">Balanza (M USD)</div>
-                    <div id="val-balanza" class="kpi-val">--</div>
-                    <div class="kpi-footer"><span>Comercial</span><span id="badge-balanza" class="badge">--</span></div>
                 </div>
                 <div id="card-deficit" class="kpi-card">
                     <div class="kpi-label">Déficit Fiscal</div>
@@ -90,7 +76,7 @@
                 </div>
             </div>
             <div class="charts-grid">
-                <div class="chart-card"><h3>Histórico Brecha (%)</h3><div class="chart-container"><canvas id="chartBrecha"></canvas></div></div>
+                <div class="chart-card"><h3>Histórico Brecha</h3><div class="chart-container"><canvas id="chartBrecha"></canvas></div></div>
                 <div class="chart-card"><h3>Inflación (IPC)</h3><div class="chart-container"><canvas id="chartIPC"></canvas></div></div>
             </div>
         </div>
@@ -98,23 +84,70 @@
         <div id="cengob-tab" class="tab-content hidden">
             <div class="header-card">
                 <div>
-                    <h1>Agenda Presidencial (DS N° 5500)</h1>
-                    [cite_start]<p>Monitoreo de las 5 Promesas y Acciones Inmediatas [cite: 14]</p>
+                    <h1>Agenda Presidencial (Enero 2026)</h1>
+                    [cite_start]<p>Seguimiento a las 5 Promesas y Hitos de Gestión [cite: 14]</p>
                 </div>
                 <div class="text-right">
-                    <div class="subtitle">CUMPLIMIENTO GLOBAL</div>
+                    <div class="subtitle">CUMPLIMIENTO</div>
                     <div id="global-progress" class="big-number">0%</div>
                 </div>
             </div>
-            <div id="cengob-container"></div>
+            
+            <div class="timeline-track">
+                <div class="timeline-item"><div class="timeline-dot">20</div><div class="timeline-date">20 Ene</div><div class="timeline-event">Encuesta Ministerios</div></div>
+                <div class="timeline-item"><div class="timeline-dot">22</div><div class="timeline-date">22 Ene</div><div class="timeline-event">Taller Priorización</div></div>
+                <div class="timeline-item"><div class="timeline-dot">26</div><div class="timeline-date">26 Ene</div><div class="timeline-event">Misión Sir Francis Maude</div></div>
+                <div class="timeline-item"><div class="timeline-dot">30</div><div class="timeline-date">30 Ene</div><div class="timeline-event">Cumbre Santa Cruz</div></div>
+            </div>
+
+            <div id="cengob-container" class="mt-20"></div>
         </div>
 
         <div id="gestion-tab" class="tab-content hidden">
-            <h1 class="mb-20">Gestión de Datos</h1>
-            <p class="mb-20">Nota: Al usar Google Sheets, edita los datos directamente en la hoja para mayor comodidad.</p>
+            <div class="header-row">
+                <h1>Editor de Datos</h1>
+                <p>Edita aquí y pulsa Guardar para actualizar Google Sheets.</p>
+            </div>
+
+            <div class="admin-grid">
+                <div class="admin-section">
+                    <div class="admin-header"><span>Variables Macro</span><span class="material-icons-round">edit</span></div>
+                    
+                    <div class="row gap-10">
+                        <div class="input-group"><label>PIB Actual</label><input type="number" id="in-pib" step="0.1"></div>
+                        <div class="input-group"><label>Meta PIB</label><input type="number" id="in-pib-target" step="0.1"></div>
+                    </div>
+                    <div class="row gap-10 mt-10">
+                        <div class="input-group"><label>Déficit Actual</label><input type="number" id="in-deficit" step="0.1"></div>
+                        <div class="input-group"><label>Techo Déficit</label><input type="number" id="in-deficit-target" step="0.1"></div>
+                    </div>
+                    <div class="separator"></div>
+                    <div class="row gap-10">
+                        <div class="input-group"><label>Dólar Oficial</label><input type="number" id="in-oficial" step="0.01"></div>
+                        <div class="input-group"><label>Dólar Paralelo</label><input type="number" id="in-paralelo" step="0.01"></div>
+                    </div>
+                    <div class="input-group mt-10">
+                        <label>Datos Históricos Brecha (separados por coma)</label>
+                        <input type="text" id="in-history">
+                    </div>
+                    <div class="admin-header mt-20"><span>Inflación (IPC)</span></div>
+                    <div id="ipc-inputs">
+                        <div class="row gap-10"><div class="input-group"><label>Alim.</label><input type="number" id="in-ipc-0"></div><div class="input-group"><label>Trans.</label><input type="number" id="in-ipc-1"></div></div>
+                        <div class="row gap-10"><div class="input-group"><label>Salud</label><input type="number" id="in-ipc-2"></div><div class="input-group"><label>Edu.</label><input type="number" id="in-ipc-3"></div></div>
+                        <div class="input-group"><label>Viv.</label><input type="number" id="in-ipc-4"></div>
+                    </div>
+                </div>
+
+                <div class="admin-section">
+                    <div class="admin-header"><span>Prioridades Presidenciales</span><span class="material-icons-round">list</span></div>
+                    <div id="admin-cengob-list"></div>
+                    <button class="btn-secondary full-width mt-10" onclick="app.addPriority()">+ Nueva Prioridad</button>
+                </div>
+            </div>
+
             <div class="fab-container">
-                <button class="fab-btn primary" onclick="window.open(prompt('Ingresa URL de edición de tu Sheet:'), '_blank')">
-                    <span class="material-icons-round icon-left">edit</span> Ir a Google Sheets
+                <button class="fab-btn primary" onclick="app.saveToCloud()">
+                    <span class="material-icons-round icon-left">cloud_upload</span> Guardar Cambios en Sheets
                 </button>
             </div>
         </div>
