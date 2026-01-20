@@ -25,12 +25,12 @@
             </div>
         </div>
         <div class="nav-actions">
-            <button class="icon-btn" onclick="app.toggleConfig()">
+            <button class="icon-btn" onclick="app.toggleConfig()" title="Configuración">
                 <span class="material-icons-round">settings</span>
             </button>
             <button class="btn-primary-sm" onclick="app.toggleView('gestion')">
-    <span class="material-icons-round" style="margin-right:5px;">edit_note</span> Gestionar
-</button>
+                <span class="material-icons-round" style="margin-right:5px;">edit_note</span> Gestionar
+            </button>
         </div>
     </nav>
 
@@ -86,7 +86,7 @@
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                 <h2 style="margin:0; color:var(--primary);">Editor de Gestión</h2>
                 <div style="display:flex; gap:10px;">
-                    <button class="btn-secondary" onclick="app.showDashboard()">Cancelar / Volver</button>
+                    <button class="btn-secondary" onclick="app.toggleView('dashboard')">Cancelar / Volver</button>
                     <button class="btn-primary-sm" onclick="app.saveData()">
                         <span class="material-icons-round" style="margin-right:5px;">save</span> Guardar Todo
                     </button>
