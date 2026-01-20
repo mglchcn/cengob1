@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CENGOB | Tablero de Mando</title>
+    <title>CENGOB | Tablero de Control</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
@@ -13,111 +13,90 @@
 
     <div id="loader" class="loading-overlay hidden">
         <span class="material-icons-round spin">sync</span>
-        <p>Sincronizando con Presidencia...</p>
+        <p>Sincronizando...</p>
     </div>
 
     <nav class="navbar">
         <div class="brand">
-            <span class="material-icons-round" style="color:var(--primary)">account_balance</span>
-            <div style="display:flex; flex-direction:column; line-height:1.1;">
-                <span style="font-weight:800; font-size:1.1rem;">S.I.G.E.P.</span>
-                <span style="font-size:0.7rem; color:var(--secondary); font-weight:600;">CENTRO DE GOBIERNO</span>
+            <span class="material-icons-round" style="color:var(--primary); font-size: 1.8rem;">account_balance</span>
+            <div style="display:flex; flex-direction:column; margin-left: 10px;">
+                <span style="font-weight:800; font-size:1rem;">S.I.G.E.P.</span>
+                <span style="font-size:0.7rem; font-weight:600; opacity:0.8;">PRESIDENCIA</span>
             </div>
         </div>
         <div class="nav-actions">
-            <span class="badge gray">DS N° 5500</span>
-            <button class="icon-btn" onclick="app.toggleConfig()" title="Configuración">
+            <button class="icon-btn" onclick="app.toggleConfig()">
                 <span class="material-icons-round">settings</span>
             </button>
-            <button class="btn-primary-sm" onclick="app.checkAuth()">
-                <span class="material-icons-round" style="font-size:1rem; margin-right:5px;">edit</span> Gestión
+            <button class="btn-primary-sm" onclick="app.showGestion()">
+                <span class="material-icons-round" style="margin-right:5px;">edit_note</span> Gestionar
             </button>
         </div>
     </nav>
 
     <div id="configModal" class="modal hidden">
         <div class="modal-content config-box">
-            <h3>Conexión API Google</h3>
-            <p class="subtitle">URL del Script (Web App) para lectura/escritura en tiempo real.</p>
+            <h3>Conexión Google Sheets</h3>
+            <p class="subtitle">Ingresa la URL del Script (Web App) para guardar en la nube.</p>
             <input type="text" id="url-script" placeholder="https://script.google.com/.../exec">
-            <button onclick="app.saveConfig()" class="btn-primary full-width mt-10">Guardar Conexión</button>
-        </div>
-    </div>
-
-    <div id="authModal" class="modal hidden">
-        <div class="modal-content auth-box">
-            <h3>Acceso Ministro</h3>
-            <input type="password" id="adminPass" placeholder="Credencial de acceso">
-            <div class="row gap-10 mt-10">
-                <button onclick="document.getElementById('authModal').classList.add('hidden')" class="btn-secondary flex-1">Cancelar</button>
-                <button onclick="app.verifyAuth()" class="btn-primary flex-1">Acceder</button>
+            <div style="display:flex; gap:10px; margin-top:15px;">
+                <button onclick="app.toggleConfig()" class="btn-secondary flex-1">Cerrar</button>
+                <button onclick="app.saveConfig()" class="btn-primary flex-1">Guardar</button>
             </div>
         </div>
     </div>
 
     <div class="container">
         
-        <div class="dashboard-header">
-            <div class="kpi-main-card">
-                <div style="flex:1">
-                    <h1>Ejecución Plan 2026</h1>
-                    <p>Avance consolidado de las 5 Promesas Presidenciales.</p>
-                    <div class="stats-row">
-                        <div>
-                            <span class="stat-label">Hitos Totales</span>
-                            <span class="stat-val" id="stat-total">0</span>
-                        </div>
-                        <div>
-                            <span class="stat-label">En Riesgo</span>
-                            <span class="stat-val red" id="stat-risk">0</span>
-                        </div>
-                        <div>
-                            <span class="stat-label">Completados</span>
-                            <span class="stat-val green" id="stat-done">0</span>
+        <div id="view-dashboard">
+            <div class="dashboard-header">
+                <div class="kpi-main-card">
+                    <div style="flex:1">
+                        <h1 style="margin:0; font-size:1.5rem; color:var(--primary);">Plan Enero 2026</h1>
+                        <p style="margin:5px 0 15px 0; color:var(--text-light); font-size:0.9rem;">Avance de las 5 Promesas (DS 5500)</p>
+                        <div class="stats-row">
+                            <div><span class="stat-label">Metas</span><span class="stat-val" id="stat-total">0</span></div>
+                            <div><span class="stat-label">Críticas</span><span class="stat-val red" id="stat-risk">0</span></div>
+                            <div><span class="stat-label">Logradas</span><span class="stat-val green" id="stat-done">0</span></div>
                         </div>
                     </div>
+                    <div class="gauge-wrapper">
+                        <canvas id="chartGlobal"></canvas>
+                        <div class="gauge-value" id="global-percent">0%</div>
+                    </div>
                 </div>
-                <div class="gauge-container">
-                    <canvas id="chartGlobal"></canvas>
-                    <div class="gauge-value" id="global-percent">0%</div>
+
+                <div class="timeline-card">
+                    <h3 style="margin:0 0 15px 0; font-size:1rem;">Hitos Clave</h3>
+                    <div class="timeline-track">
+                        <div class="t-item done"><div>20 Ene</div><small>Encuesta</small></div>
+                        <div class="t-item active"><div>22 Ene</div><small>Priorización</small></div>
+                        <div class="t-item"><div>26 Ene</div><small>Misión BID</small></div>
+                        <div class="t-item"><div>30 Ene</div><small>Cumbre</small></div>
+                    </div>
                 </div>
             </div>
 
-            <div class="timeline-card">
-                <h3>Ruta Crítica: Enero 2026</h3>
-                <div class="timeline-track">
-                    <div class="timeline-item done">
-                        <div class="dot"></div><div class="date">20 Ene</div>
-                        <div class="evt">Encuesta Digital</div>
-                    </div>
-                    <div class="timeline-item active">
-                        <div class="dot"></div><div class="date">22 Ene</div>
-                        <div class="evt">Taller Priorización</div>
-                    </div>
-                    <div class="timeline-item">
-                        <div class="dot"></div><div class="date">26 Ene</div>
-                        <div class="evt">Misión F. Maude</div>
-                    </div>
-                    <div class="timeline-item">
-                        <div class="dot"></div><div class="date">30 Ene</div>
-                        <div class="evt">Cumbre Sta. Cruz</div>
-                    </div>
+            <h2 class="section-title">Pilares Estratégicos</h2>
+            <div class="pillars-grid" id="pillars-container">
                 </div>
-            </div>
         </div>
 
-        <h2 class="section-title">Los 5 Pilares Estratégicos</h2>
-        <div class="pillars-grid" id="pillars-container">
+        <div id="view-gestion" class="hidden">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h2 style="margin:0; color:var(--primary);">Editor de Gestión</h2>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn-secondary" onclick="app.showDashboard()">Cancelar / Volver</button>
+                    <button class="btn-primary-sm" onclick="app.saveData()">
+                        <span class="material-icons-round" style="margin-right:5px;">save</span> Guardar Todo
+                    </button>
+                </div>
             </div>
-
-        <div id="gestion-panel" class="hidden mt-40">
-            <div class="admin-header-row">
-                <h2>Panel de Actualización de Metas</h2>
-                <button class="fab-save" onclick="app.saveToCloud()">
-                    <span class="material-icons-round">cloud_upload</span> Guardar Cambios
-                </button>
-            </div>
-            <div id="admin-list" class="admin-list-container"></div>
+            
+            <div id="admin-container" class="admin-list-container">
+                </div>
+            
+            <button class="btn-dashed full-width mt-20" onclick="app.addPillar()">+ Añadir Nuevo Pilar</button>
         </div>
 
     </div>
