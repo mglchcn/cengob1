@@ -3,214 +3,123 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>S.I.G.E.P. | Centro de Gobierno</title>
-    
+    <title>CENGOB | Tablero de Mando</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
-    
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
     <div id="loader" class="loading-overlay hidden">
-        <span class="material-icons-round spin">cloud_upload</span>
-        <p>Sincronizando con Google Sheets...</p>
+        <span class="material-icons-round spin">sync</span>
+        <p>Sincronizando con Presidencia...</p>
     </div>
 
     <nav class="navbar">
         <div class="brand">
-            <span class="material-icons-round">account_balance</span> S.I.G.E.P. | Presidencia
+            <span class="material-icons-round" style="color:var(--primary)">account_balance</span>
+            <div style="display:flex; flex-direction:column; line-height:1.1;">
+                <span style="font-weight:800; font-size:1.1rem;">S.I.G.E.P.</span>
+                <span style="font-size:0.7rem; color:var(--secondary); font-weight:600;">CENTRO DE GOBIERNO</span>
+            </div>
         </div>
-        <div class="tabs">
-            <button class="tab-btn active" onclick="app.switchTab('macro')">Macroeconomía</button>
-            <button class="tab-btn" onclick="app.switchTab('cengob')">Agenda Presidencial</button>
-            <button class="tab-btn" onclick="app.checkAuth()">🔐 Editar Datos</button>
+        <div class="nav-actions">
+            <span class="badge gray">DS N° 5500</span>
+            <button class="icon-btn" onclick="app.toggleConfig()" title="Configuración">
+                <span class="material-icons-round">settings</span>
+            </button>
+            <button class="btn-primary-sm" onclick="app.checkAuth()">
+                <span class="material-icons-round" style="font-size:1rem; margin-right:5px;">edit</span> Gestión
+            </button>
         </div>
-        <button class="icon-btn" onclick="document.getElementById('configModal').classList.toggle('hidden')">
-            <span class="material-icons-round">settings</span>
-        </button>
     </nav>
 
     <div id="configModal" class="modal hidden">
         <div class="modal-content config-box">
-            <h3>Conexión Nube</h3>
-            <p class="subtitle">Pega aquí la URL de tu Google Apps Script (Web App)</p>
+            <h3>Conexión API Google</h3>
+            <p class="subtitle">URL del Script (Web App) para lectura/escritura en tiempo real.</p>
             <input type="text" id="url-script" placeholder="https://script.google.com/.../exec">
-            <button onclick="app.saveConfig()" class="btn-primary full-width mt-10">Guardar Enlace</button>
+            <button onclick="app.saveConfig()" class="btn-primary full-width mt-10">Guardar Conexión</button>
         </div>
     </div>
 
     <div id="authModal" class="modal hidden">
         <div class="modal-content auth-box">
-            <h3>Modo Edición</h3>
-            <p class="subtitle">Ingrese credenciales de administrador.</p>
-            <input type="password" id="adminPass" placeholder="Contraseña (admin123)">
+            <h3>Acceso Ministro</h3>
+            <input type="password" id="adminPass" placeholder="Credencial de acceso">
             <div class="row gap-10 mt-10">
                 <button onclick="document.getElementById('authModal').classList.add('hidden')" class="btn-secondary flex-1">Cancelar</button>
-                <button onclick="app.verifyAuth()" class="btn-primary flex-1">Entrar</button>
+                <button onclick="app.verifyAuth()" class="btn-primary flex-1">Acceder</button>
             </div>
         </div>
     </div>
 
     <div class="container">
         
-        <div id="macro-tab" class="tab-content">
-            <div class="header-row">
-                <h1>Monitor de Estabilidad</h1>
-                <span class="badge gray">Fuente: Min. Economía / BCB</span>
-            </div>
-
-            <div class="macro-grid">
-                <div id="card-pib" class="kpi-card">
-                    <div class="kpi-label">PIB Real</div>
-                    <div id="val-pib" class="kpi-val">--</div>
-                    <div class="kpi-footer">
-                        <span id="target-pib">Meta: --</span>
-                        <span id="badge-pib" class="badge">--</span>
+        <div class="dashboard-header">
+            <div class="kpi-main-card">
+                <div style="flex:1">
+                    <h1>Ejecución Plan 2026</h1>
+                    <p>Avance consolidado de las 5 Promesas Presidenciales.</p>
+                    <div class="stats-row">
+                        <div>
+                            <span class="stat-label">Hitos Totales</span>
+                            <span class="stat-val" id="stat-total">0</span>
+                        </div>
+                        <div>
+                            <span class="stat-label">En Riesgo</span>
+                            <span class="stat-val red" id="stat-risk">0</span>
+                        </div>
+                        <div>
+                            <span class="stat-label">Completados</span>
+                            <span class="stat-val green" id="stat-done">0</span>
+                        </div>
                     </div>
                 </div>
-                <div id="card-deficit" class="kpi-card">
-                    <div class="kpi-label">Déficit Fiscal (% PIB)</div>
-                    <div id="val-deficit" class="kpi-val">--</div>
-                    <div class="kpi-footer">
-                        <span id="target-deficit">Techo: --</span>
-                        <span id="badge-deficit" class="badge">--</span>
-                    </div>
-                </div>
-                <div id="card-brecha" class="kpi-card">
-                    <div class="kpi-label">Brecha Cambiaria</div>
-                    <div id="val-brecha" class="kpi-val">--</div>
-                    <div class="kpi-footer">
-                        <span>Of: <b id="val-oficial">--</b> | Par: <b id="val-paralelo">--</b></span>
-                        <span id="badge-brecha" class="badge">--</span>
-                    </div>
+                <div class="gauge-container">
+                    <canvas id="chartGlobal"></canvas>
+                    <div class="gauge-value" id="global-percent">0%</div>
                 </div>
             </div>
 
-            <div class="charts-grid">
-                <div class="chart-card">
-                    <h3>Tendencia Brecha Cambiaria</h3>
-                    <div class="chart-container"><canvas id="chartBrecha"></canvas></div>
-                </div>
-                <div class="chart-card">
-                    <h3>Inflación por Rubro (IPC)</h3>
-                    <div class="chart-container"><canvas id="chartIPC"></canvas></div>
-                </div>
-            </div>
-        </div>
-
-        <div id="cengob-tab" class="tab-content hidden">
-            <div class="header-card">
-                <div>
-                    <h1>Agenda Presidencial (Enero 2026)</h1>
-                    [cite_start]<p>Seguimiento a las 5 Promesas y Hitos de Gestión [cite: 14]</p>
-                </div>
-                <div class="text-right">
-                    <div class="subtitle">CUMPLIMIENTO GLOBAL</div>
-                    <div id="global-progress" class="big-number">0%</div>
-                </div>
-            </div>
-            
-            <div class="timeline-section" style="margin: 30px 0;">
-                <h3 style="font-size:1rem; color:var(--primary); margin-bottom:15px;">Ruta Crítica: Puesta en Marcha</h3>
+            <div class="timeline-card">
+                <h3>Ruta Crítica: Enero 2026</h3>
                 <div class="timeline-track">
-                    <div class="timeline-item">
-                        <div class="timeline-dot">20</div>
-                        <div class="timeline-date">20 Ene</div>
-                        <div class="timeline-event">Encuesta Ministerios</div>
+                    <div class="timeline-item done">
+                        <div class="dot"></div><div class="date">20 Ene</div>
+                        <div class="evt">Encuesta Digital</div>
+                    </div>
+                    <div class="timeline-item active">
+                        <div class="dot"></div><div class="date">22 Ene</div>
+                        <div class="evt">Taller Priorización</div>
                     </div>
                     <div class="timeline-item">
-                        <div class="timeline-dot">22</div>
-                        <div class="timeline-date">22 Ene</div>
-                        <div class="timeline-event">Taller Priorización</div>
+                        <div class="dot"></div><div class="date">26 Ene</div>
+                        <div class="evt">Misión F. Maude</div>
                     </div>
                     <div class="timeline-item">
-                        <div class="timeline-dot">26</div>
-                        <div class="timeline-date">26 Ene</div>
-                        <div class="timeline-event">Misión Francis Maude</div>
-                    </div>
-                    <div class="timeline-item">
-                        <div class="timeline-dot">30</div>
-                        <div class="timeline-date">30 Ene</div>
-                        <div class="timeline-event">Cumbre Santa Cruz</div>
+                        <div class="dot"></div><div class="date">30 Ene</div>
+                        <div class="evt">Cumbre Sta. Cruz</div>
                     </div>
                 </div>
             </div>
-
-            <div id="cengob-container" class="mt-20"></div>
         </div>
 
-        <div id="gestion-tab" class="tab-content hidden">
-            <div class="header-row">
-                <h1>Editor de Datos Maestros</h1>
-                <p>Modifica los valores abajo y pulsa "Guardar" para sincronizar con la nube.</p>
+        <h2 class="section-title">Los 5 Pilares Estratégicos</h2>
+        <div class="pillars-grid" id="pillars-container">
             </div>
 
-            <div class="admin-grid">
-                
-                <div class="admin-section">
-                    <div class="admin-header">
-                        <span>Variables Macroeconómicas</span>
-                        <span class="material-icons-round">trending_up</span>
-                    </div>
-                    
-                    <div class="row gap-10">
-                        <div class="input-group"><label>PIB Actual (%)</label><input type="number" id="in-pib" step="0.1"></div>
-                        <div class="input-group"><label>Meta PIB (%)</label><input type="number" id="in-pib-target" step="0.1"></div>
-                    </div>
-                    <div class="row gap-10 mt-10">
-                        <div class="input-group"><label>Déficit Actual (%)</label><input type="number" id="in-deficit" step="0.1"></div>
-                        <div class="input-group"><label>Techo Déficit (%)</label><input type="number" id="in-deficit-target" step="0.1"></div>
-                    </div>
-                    <div class="separator"></div>
-                    <div class="row gap-10">
-                        <div class="input-group"><label>Dólar Oficial</label><input type="number" id="in-oficial" step="0.01"></div>
-                        <div class="input-group"><label>Dólar Paralelo</label><input type="number" id="in-paralelo" step="0.01"></div>
-                    </div>
-                    
-                    <div class="input-group mt-10">
-                        <label>Histórico Brecha (6 datos separados por coma)</label>
-                        <input type="text" id="in-history" placeholder="30, 32, 35, 40, 45, 50">
-                    </div>
-
-                    <div class="admin-header mt-20">
-                        <span>Inflación (IPC)</span>
-                    </div>
-                    <div id="ipc-inputs">
-                        <div class="row gap-10">
-                            <div class="input-group"><label>Alimentos</label><input type="number" id="in-ipc-0" step="0.1"></div>
-                            <div class="input-group"><label>Transporte</label><input type="number" id="in-ipc-1" step="0.1"></div>
-                        </div>
-                        <div class="row gap-10 mt-10">
-                            <div class="input-group"><label>Salud</label><input type="number" id="in-ipc-2" step="0.1"></div>
-                            <div class="input-group"><label>Educación</label><input type="number" id="in-ipc-3" step="0.1"></div>
-                        </div>
-                        <div class="input-group mt-10"><label>Vivienda</label><input type="number" id="in-ipc-4" step="0.1"></div>
-                    </div>
-                </div>
-
-                <div class="admin-section">
-                    <div class="admin-header">
-                        <span>Prioridades y Tareas</span>
-                        <span class="material-icons-round">list_alt</span>
-                    </div>
-                    
-                    <div id="admin-cengob-list">
-                        </div>
-                    
-                    <button class="btn-secondary full-width mt-10" onclick="app.addPriority()">
-                        <span class="material-icons-round icon-left">add_circle</span> Nueva Prioridad
-                    </button>
-                </div>
-            </div>
-
-            <div class="fab-container">
-                <button class="fab-btn primary" onclick="app.saveToCloud()">
-                    <span class="material-icons-round icon-left">cloud_upload</span> Guardar Cambios
+        <div id="gestion-panel" class="hidden mt-40">
+            <div class="admin-header-row">
+                <h2>Panel de Actualización de Metas</h2>
+                <button class="fab-save" onclick="app.saveToCloud()">
+                    <span class="material-icons-round">cloud_upload</span> Guardar Cambios
                 </button>
             </div>
+            <div id="admin-list" class="admin-list-container"></div>
         </div>
+
     </div>
 
     <script src="script.js"></script>
