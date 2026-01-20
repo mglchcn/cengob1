@@ -1,5 +1,4 @@
 const app = {
-    // 1. DATOS DE EJEMPLO (Base)
     defaultData: [
         {
             title: "Economía para todos",
@@ -49,40 +48,20 @@ const app = {
     config: { script_url: localStorage.getItem('cengob_url') || '' },
     charts: [],
 
-    // --- INICIO ---
     init: function() {
         console.log("Iniciando App...");
-        
-        // Cargar URL guardada
-        const urlInput = document.getElementById('url-script');
-        if(urlInput) urlInput.value = this.config.script_url;
+        if(document.getElementById('url-script')) document.getElementById('url-script').value = this.config.script_url;
 
-        // Cargar Datos (Local o Default)
         const stored = localStorage.getItem('cengobData');
-        if (stored) {
-            try {
-                this.data = JSON.parse(stored);
-            } catch (e) {
-                this.data = JSON.parse(JSON.stringify(this.defaultData));
-            }
-        } else {
-            this.data = JSON.parse(JSON.stringify(this.defaultData));
-        }
+        this.data = stored ? JSON.parse(stored) : JSON.parse(JSON.stringify(this.defaultData));
 
-        // Renderizar inicial
         this.renderDashboard();
-        
-        // Intentar actualizar desde nube si hay URL
         if(this.config.script_url) this.fetchFromCloud();
     },
 
-    // --- NAVEGACIÓN (Corrección del botón Gestionar) ---
     toggleView: function(viewName) {
         const dashboard = document.getElementById('view-dashboard');
         const gestion = document.getElementById('view-gestion');
-
-        if (!dashboard || !gestion) return console.error("Error: No se encuentran las vistas HTML");
-
         if (viewName === 'gestion') {
             dashboard.classList.add('hidden');
             gestion.classList.remove('hidden');
@@ -94,64 +73,59 @@ const app = {
         }
     },
 
-    // --- RENDERIZADO VISUAL (Dashboard) ---
+    // --- RENDER DASHBOARD (CON ACORDEÓN) ---
     renderDashboard: function() {
         const container = document.getElementById('pillars-container');
         if(!container) return;
         container.innerHTML = '';
-        
-        // Limpiar gráficos previos
         this.charts.forEach(c => c.destroy());
         this.charts = [];
 
-        let totalProgress = 0;
-        let count = 0;
-        let risks = 0;
-        let done = 0;
-        let totalTasks = 0;
+        let totalProgress = 0, count = 0, risks = 0, done = 0, totalTasks = 0;
 
         this.data.forEach((p, idx) => {
-            // Cálculos
             let pVal = 0;
-            if (p.subtasks && p.subtasks.length > 0) {
+            if (p.subtasks.length > 0) {
                 pVal = Math.round(p.subtasks.reduce((a,b)=>a+(parseFloat(b.progress)||0),0) / p.subtasks.length);
             }
-            totalProgress += pVal;
-            count++;
-            totalTasks += p.subtasks.length;
-            if(pVal < 30) risks++;
-            if(pVal >= 90) done++;
+            totalProgress += pVal; count++; totalTasks += p.subtasks.length;
+            if(pVal < 30) risks++; if(pVal >= 90) done++;
 
-            // HTML Tareas (Preview)
             const tasksHtml = p.subtasks.map(t => `
                 <div class="task-row">
-                    <span class="t-name">${t.name}</span>
+                    <div>
+                        <span class="t-name">${t.name}</span>
+                        <div style="font-size:0.7rem; color:#6b7280; margin-top:2px;">${t.ministry}</div>
+                    </div>
                     <span class="t-val ${t.progress<50?'red':'green'}">${t.progress}%</span>
                 </div>
             `).join('');
 
-            // Tarjeta
             const card = document.createElement('div');
             card.className = 'pillar-card';
+            card.id = `pillar-card-${idx}`;
+            
+            // Estructura Acordeón
             card.innerHTML = `
-                <div class="pillar-header">
+                <div class="pillar-header" onclick="app.toggleAccordion(${idx})">
                     <div class="icon-box"><span class="material-icons-round">${p.icon}</span></div>
+                    <div style="flex:1;">
+                        <h3 style="margin:0 0 5px 0; font-size:1rem; color:var(--primary);">${p.title}</h3>
+                        <p style="margin:0; font-size:0.85rem; color:var(--text-light); line-height:1.3;">${p.desc}</p>
+                        <div class="progress-bar"><div class="progress-fill" style="width:${pVal}%"></div></div>
+                    </div>
                     <div class="chart-mini">
                         <canvas id="chart-p-${idx}"></canvas>
                         <div class="chart-val">${pVal}%</div>
                     </div>
+                    <span class="material-icons-round accordion-icon">expand_more</span>
                 </div>
-                <h3>${p.title}</h3>
-                <p>${p.desc}</p>
-                <div class="tasks-list">${tasksHtml || '<small>Sin tareas</small>'}</div>
+                <div class="tasks-list">${tasksHtml || '<small style="display:block;text-align:center">Sin tareas</small>'}</div>
             `;
             container.appendChild(card);
-
-            // Gráfico individual
             this.createChart(`chart-p-${idx}`, pVal);
         });
 
-        // Actualizar Header Global
         const globalAvg = count ? Math.round(totalProgress/count) : 0;
         document.getElementById('stat-total').innerText = totalTasks;
         document.getElementById('stat-risk').innerText = risks;
@@ -160,7 +134,13 @@ const app = {
         this.createGauge('chartGlobal', globalAvg);
     },
 
-    // --- RENDERIZADO GESTIÓN (Editor) ---
+    // --- ACCIÓN ACORDEÓN ---
+    toggleAccordion: function(idx) {
+        const card = document.getElementById(`pillar-card-${idx}`);
+        card.classList.toggle('active');
+    },
+
+    // --- RENDER GESTIÓN ---
     renderGestion: function() {
         const container = document.getElementById('admin-container');
         if(!container) return;
@@ -176,8 +156,7 @@ const app = {
                         <input type="text" class="in-task-min" value="${t.ministry}" placeholder="Ministerio">
                         <input type="number" class="in-task-prog" value="${t.progress}" placeholder="%">
                         <button class="btn-del" onclick="app.deleteTask(${pIdx}, ${tIdx})">×</button>
-                    </div>
-                `;
+                    </div>`;
             });
 
             const div = document.createElement('div');
@@ -187,28 +166,26 @@ const app = {
                     <div class="edit-row">
                         <span class="material-icons-round">folder</span>
                         <input type="text" class="in-p-title bold" value="${p.title}" placeholder="Título Pilar">
-                        <input type="text" class="in-p-icon" value="${p.icon}" placeholder="Icono (ej: paid)" style="width:100px;">
-                        <button class="btn-del-pilar" onclick="app.deletePillar(${pIdx})">Borrar Pilar</button>
+                        <input type="text" class="in-p-icon" value="${p.icon}" placeholder="Icono" style="width:100px;">
+                        <button class="btn-del-pilar" onclick="app.deletePillar(${pIdx})">Borrar</button>
                     </div>
                     <input type="text" class="in-p-desc full" value="${p.desc}" placeholder="Descripción">
                 </div>
                 <div class="edit-body">
                     ${tasksHtml}
                     <button class="btn-add-task" onclick="app.addTask(${pIdx})">+ Añadir Tarea</button>
-                </div>
-            `;
+                </div>`;
             container.appendChild(div);
         });
     },
 
-    // --- COSECHA DE DATOS (Harvesting) ---
+    // --- COSECHA DATOS (CRUD) ---
     harvestData: function() {
         const adminContainer = document.getElementById('admin-container');
         if(!adminContainer || adminContainer.innerHTML === "") return; 
         
         const pillarCards = adminContainer.getElementsByClassName('admin-card');
         let newData = [];
-
         Array.from(pillarCards).forEach((card) => {
             let pObj = {
                 title: card.querySelector('.in-p-title').value,
@@ -229,78 +206,34 @@ const app = {
         this.data = newData;
     },
 
-    // --- ACCIONES DE DATOS ---
-    addTask: function(pIdx) {
-        this.harvestData(); 
-        this.data[pIdx].subtasks.push({name: "", ministry: "", progress: 0});
-        this.renderGestion();
-    },
-    deleteTask: function(pIdx, tIdx) {
-        this.harvestData();
-        this.data[pIdx].subtasks.splice(tIdx, 1);
-        this.renderGestion();
-    },
-    addPillar: function() {
-        this.harvestData();
-        this.data.push({title: "Nuevo Eje", desc: "", icon: "flag", subtasks: []});
-        this.renderGestion();
-    },
-    deletePillar: function(pIdx) {
-        if(!confirm("¿Seguro de eliminar este pilar?")) return;
-        this.harvestData();
-        this.data.splice(pIdx, 1);
-        this.renderGestion();
-    },
+    addTask: function(pIdx) { this.harvestData(); this.data[pIdx].subtasks.push({name: "", ministry: "", progress: 0}); this.renderGestion(); },
+    deleteTask: function(pIdx, tIdx) { this.harvestData(); this.data[pIdx].subtasks.splice(tIdx, 1); this.renderGestion(); },
+    addPillar: function() { this.harvestData(); this.data.push({title: "Nuevo Eje", desc: "", icon: "flag", subtasks: []}); this.renderGestion(); },
+    deletePillar: function(pIdx) { if(!confirm("¿Borrar pilar?")) return; this.harvestData(); this.data.splice(pIdx, 1); this.renderGestion(); },
 
-    // --- GUARDADO ---
     saveData: async function() {
         this.harvestData();
-        
-        // Local
         localStorage.setItem('cengobData', JSON.stringify(this.data));
-
-        // Nube
         if(this.config.script_url) {
             document.getElementById('loader').classList.remove('hidden');
             try {
-                await fetch(this.config.script_url, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    headers: {'Content-Type': 'text/plain'},
-                    body: JSON.stringify({ cengob: this.data })
-                });
-                alert("✅ Guardado en Navegador y Google Sheets");
-            } catch(e) {
-                console.error(e);
-                alert("⚠️ Guardado solo en Navegador (Fallo red)");
-            }
+                await fetch(this.config.script_url, { method: 'POST', mode: 'no-cors', headers: {'Content-Type': 'text/plain'}, body: JSON.stringify({ cengob: this.data }) });
+                alert("✅ Guardado en Nube");
+            } catch(e) { console.error(e); alert("⚠️ Guardado solo local"); }
             document.getElementById('loader').classList.add('hidden');
-        } else {
-            alert("✅ Guardado localmente.");
-        }
-
+        } else { alert("✅ Guardado local"); }
         this.toggleView('dashboard');
     },
 
-    // --- NUBE (Fetch) ---
     fetchFromCloud: async function() {
         try {
             const res = await fetch(this.config.script_url);
             const json = await res.json();
-            if(json && json.cengob) {
-                this.data = json.cengob;
-                this.renderDashboard();
-            }
-        } catch(e) {
-            console.log("Sin conexión nube");
-        }
+            if(json && json.cengob) { this.data = json.cengob; this.renderDashboard(); }
+        } catch(e) { console.log("Sin conexión nube"); }
     },
 
-    // --- UTILS ---
-    toggleConfig: function() { 
-        document.getElementById('configModal').classList.toggle('hidden'); 
-    },
-    
+    toggleConfig: () => document.getElementById('configModal').classList.toggle('hidden'),
     saveConfig: function() {
         const url = document.getElementById('url-script').value;
         this.config.script_url = url;
@@ -310,27 +243,13 @@ const app = {
         this.fetchFromCloud();
     },
 
-    // --- GRÁFICOS ---
     createChart: function(id, val) {
-        const ctx = document.getElementById(id);
-        if(!ctx) return;
-        this.charts.push(new Chart(ctx, {
-            type: 'doughnut',
-            data: { datasets: [{ data: [val, 100-val], backgroundColor: [this.getColor(val), '#e5e7eb'], borderWidth:0, cutout:'75%' }] },
-            options: {responsive:true, maintainAspectRatio:false, plugins:{tooltip:{enabled:false}}}
-        }));
+        new Chart(document.getElementById(id), { type: 'doughnut', data: { datasets: [{ data: [val, 100-val], backgroundColor: [this.getColor(val), '#e5e7eb'], borderWidth:0, cutout:'75%' }] }, options: {responsive:true, maintainAspectRatio:false, plugins:{tooltip:{enabled:false}}} });
     },
     createGauge: function(id, val) {
-        const ctx = document.getElementById(id);
-        if(!ctx) return;
-        this.charts.push(new Chart(ctx, {
-            type: 'doughnut',
-            data: { datasets: [{ data: [val, 100-val], backgroundColor: ['#1e3a8a', '#e5e7eb'], borderWidth:0, cutout:'85%', circumference:180, rotation:270 }] },
-            options: {responsive:true, maintainAspectRatio:false, plugins:{tooltip:{enabled:false}}}
-        }));
+        new Chart(document.getElementById(id), { type: 'doughnut', data: { datasets: [{ data: [val, 100-val], backgroundColor: ['#1e3a8a', '#e5e7eb'], borderWidth:0, cutout:'85%', circumference:180, rotation:270 }] }, options: {responsive:true, maintainAspectRatio:false, plugins:{tooltip:{enabled:false}}} });
     },
     getColor: function(val) { return val < 40 ? '#ef4444' : (val < 80 ? '#f59e0b' : '#10b981'); }
 };
 
-// INICIALIZADOR
 document.addEventListener('DOMContentLoaded', () => app.init());
