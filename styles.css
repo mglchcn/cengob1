@@ -1,89 +1,349 @@
-:root {
-    --primary: #1e3a8a; /* Azul Institucional */
-    --primary-dark: #172554;
-    --accent: #3b82f6;
-    --bg: #f3f4f6;
-    --card: #ffffff;
-    --text: #1f2937;
-    --text-light: #6b7280;
-    --success: #10b981;
-    --warning: #f59e0b;
-    --danger: #ef4444;
-    --border: #e5e7eb;
-}
+const app = {
+    [cite_start]// DATOS INICIALES (Backup) [cite: 16-25]
+    defaultData: [
+        {
+            title: "Economía para todos",
+            desc: "Fomento del capitalismo popular y estabilidad.",
+            icon: "paid",
+            subtasks: [
+                {name: "10 Acciones Corto Plazo", ministry: "Min. Economía", progress: 80}, 
+                {name: "Créditos SiBolivia 2.0", ministry: "MDPyEP", progress: 40}
+            ]
+        },
+        {
+            title: "Bolivia 50/50",
+            desc: "Nuevo modelo de autonomías.",
+            icon: "balance",
+            subtasks: [
+                {name: "Propuesta Pacto Fiscal", ministry: "Vicemin. Autonomías", progress: 20}
+            ]
+        },
+        {
+            title: "Bolivia Global",
+            desc: "Apertura y diversificación exportadora.",
+            icon: "public",
+            subtasks: [
+                {name: "Rueda de Negocios", ministry: "Cancillería", progress: 10}
+            ]
+        },
+        {
+            title: "Fin 'Estado-tranca'",
+            desc: "Digitalización y lucha contra corrupción.",
+            icon: "rocket_launch",
+            subtasks: [
+                {name: "Ventanilla Única", ministry: "AGETIC", progress: 30},
+                {name: "Trámites Cero Papel", ministry: "Min. Presidencia", progress: 15}
+            ]
+        },
+        {
+            title: "Bolivia Sustentable",
+            desc: "Litio y desarrollo verde.",
+            icon: "forest",
+            subtasks: [
+                {name: "Plan Litio 2026", ministry: "YLB", progress: 60}
+            ]
+        }
+    ],
 
-body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding-bottom: 80px; }
-* { box-sizing: border-box; }
-.hidden { display: none !important; }
+    data: [], 
+    config: { script_url: localStorage.getItem('cengob_url') || '' },
+    charts: [],
 
-/* Navbar */
-.navbar { background: var(--card); padding: 0 32px; height: 70px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50; }
-.brand { display: flex; align-items: center; gap: 12px; }
-.badge { background: #e0f2fe; color: var(--primary); padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
-.icon-btn { background: none; border: none; cursor: pointer; color: var(--text-light); padding: 8px; border-radius: 50%; transition: background 0.2s; }
-.icon-btn:hover { background: #f9fafb; color: var(--primary); }
-.btn-primary-sm { background: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; }
+    init: function() {
+        if(document.getElementById('url-script')) {
+            document.getElementById('url-script').value = this.config.script_url;
+        }
+        
+        // Carga inicial: Intenta LocalStorage, si no, usa Default
+        const stored = localStorage.getItem('cengobData');
+        if (stored) {
+            this.data = JSON.parse(stored);
+        } else {
+            this.data = JSON.parse(JSON.stringify(this.defaultData));
+        }
 
-/* Dashboard Header */
-.container { max-width: 1400px; margin: 30px auto; padding: 0 20px; }
-.dashboard-header { display: grid; grid-template-columns: 1.5fr 1fr; gap: 24px; margin-bottom: 40px; }
+        this.renderDashboard();
+        
+        // Si hay URL, intentamos actualizar en segundo plano
+        if(this.config.script_url) this.fetchFromCloud();
+    },
 
-/* Main KPI Card (Velocímetro) */
-.kpi-main-card { background: var(--card); border-radius: 16px; padding: 30px; display: flex; align-items: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid var(--border); }
-.stats-row { display: flex; gap: 40px; margin-top: 24px; }
-.stat-label { display: block; font-size: 0.8rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
-.stat-val { font-size: 1.5rem; font-weight: 800; }
-.stat-val.red { color: var(--danger); }
-.stat-val.green { color: var(--success); }
+    // --- RENDERIZADO VISUAL (DASHBOARD) ---
+    renderDashboard: function() {
+        const container = document.getElementById('pillars-container');
+        container.innerHTML = '';
+        
+        let totalProgress = 0;
+        let count = 0;
+        let risks = 0;
+        let done = 0;
+        let totalTasks = 0;
 
-.gauge-container { position: relative; width: 180px; height: 120px; display: flex; justify-content: center; }
-.gauge-value { position: absolute; bottom: 0; font-size: 2rem; font-weight: 800; color: var(--primary); }
+        // Limpiar gráficos anteriores para evitar fugas de memoria
+        this.charts.forEach(c => c.destroy());
+        this.charts = [];
 
-/* Timeline Card */
-.timeline-card { background: var(--card); border-radius: 16px; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid var(--border); }
-.timeline-track { display: flex; justify-content: space-between; margin-top: 25px; position: relative; }
-.timeline-track::before { content: ''; position: absolute; top: 7px; left: 0; right: 0; height: 2px; background: #e5e7eb; z-index: 0; }
-.timeline-item { position: relative; z-index: 1; text-align: center; }
-.dot { width: 16px; height: 16px; background: white; border: 3px solid var(--text-light); border-radius: 50%; margin: 0 auto 8px; transition: all 0.3s; }
-.timeline-item.active .dot { border-color: var(--warning); background: #fef3c7; transform: scale(1.2); }
-.timeline-item.done .dot { border-color: var(--success); background: var(--success); }
-.date { font-weight: 700; font-size: 0.9rem; color: var(--text); }
-.evt { font-size: 0.8rem; color: var(--text-light); }
+        this.data.forEach((p, idx) => {
+            // Cálculos
+            let pVal = 0;
+            if (p.subtasks.length > 0) {
+                pVal = Math.round(p.subtasks.reduce((a,b)=>a+(parseFloat(b.progress)||0),0) / p.subtasks.length);
+            }
+            totalProgress += pVal;
+            count++;
+            totalTasks += p.subtasks.length;
+            if(pVal < 30) risks++;
+            if(pVal >= 90) done++;
 
-/* Pillars Grid */
-.section-title { font-size: 1.25rem; font-weight: 700; margin-bottom: 20px; color: var(--primary); }
-.pillars-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 24px; }
+            // HTML Tareas (Preview)
+            const tasksHtml = p.subtasks.map(t => `
+                <div class="task-row">
+                    <span class="t-name">${t.name}</span>
+                    <span class="t-val ${t.progress<50?'red':'green'}">${t.progress}%</span>
+                </div>
+            `).join('');
 
-.pillar-card { background: var(--card); border-radius: 12px; padding: 24px; border: 1px solid var(--border); transition: transform 0.2s, box-shadow 0.2s; cursor: default; }
-.pillar-card:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
-.pillar-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px; }
-.icon-box { width: 48px; height: 48px; background: var(--primary-light); color: var(--primary); border-radius: 12px; display: grid; place-items: center; font-size: 1.5rem; }
-.chart-mini-container { width: 60px; height: 60px; position: relative; }
-.mini-percent { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 0.8rem; font-weight: 800; color: var(--text); }
+            const card = document.createElement('div');
+            card.className = 'pillar-card';
+            card.innerHTML = `
+                <div class="pillar-header">
+                    <div class="icon-box"><span class="material-icons-round">${p.icon}</span></div>
+                    <div class="chart-mini">
+                        <canvas id="chart-p-${idx}"></canvas>
+                        <div class="chart-val">${pVal}%</div>
+                    </div>
+                </div>
+                <h3>${p.title}</h3>
+                <p>${p.desc}</p>
+                <div class="tasks-list">${tasksHtml || '<small>Sin tareas</small>'}</div>
+            `;
+            container.appendChild(card);
 
-.pillar-title { font-weight: 700; font-size: 1rem; margin-bottom: 5px; height: 40px; display: flex; align-items: center; }
-.pillar-desc { font-size: 0.85rem; color: var(--text-light); line-height: 1.4; margin-bottom: 15px; height: 40px; overflow: hidden; }
-.tasks-preview { border-top: 1px solid var(--border); padding-top: 12px; }
-.task-row { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 6px; }
-.task-name { color: var(--text); font-weight: 500; max-width: 70%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ministry-badge { font-size: 0.65rem; background: #f3f4f6; padding: 2px 6px; border-radius: 4px; color: var(--text-light); }
+            // Gráfico Donut Individual
+            this.createChart(`chart-p-${idx}`, pVal);
+        });
 
-/* Admin Panel */
-.admin-list-container { display: grid; gap: 20px; }
-.admin-item { background: white; padding: 20px; border-radius: 12px; border-left: 4px solid var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-.admin-task-row { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px; margin-top: 10px; align-items: center; }
-input { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; font-family: inherit; }
-.fab-save { position: fixed; bottom: 30px; right: 30px; background: var(--primary); color: white; border: none; padding: 16px 24px; border-radius: 50px; font-weight: 600; display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 15px rgba(30, 58, 138, 0.4); cursor: pointer; transition: transform 0.2s; z-index: 100;}
-.fab-save:hover { transform: scale(1.05); }
+        // Actualizar Cabecera
+        const globalAvg = count ? Math.round(totalProgress/count) : 0;
+        document.getElementById('stat-total').innerText = totalTasks;
+        document.getElementById('stat-risk').innerText = risks;
+        document.getElementById('stat-done').innerText = done;
+        document.getElementById('global-percent').innerText = globalAvg + '%';
+        this.createGauge('chartGlobal', globalAvg);
+    },
 
-/* Modals */
-.modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 200; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
-.modal-content { background: white; padding: 30px; border-radius: 16px; width: 320px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
-.loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 300; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-.spin { animation: spin 1s linear infinite; font-size: 3rem; color: var(--primary); }
-@keyframes spin { 100% { transform: rotate(360deg); } }
+    // --- RENDERIZADO GESTIÓN (EDITOR) ---
+    renderGestion: function() {
+        const container = document.getElementById('admin-container');
+        container.innerHTML = '';
 
-@media (max-width: 768px) {
-    .dashboard-header { grid-template-columns: 1fr; }
-    .timeline-track { overflow-x: auto; padding-bottom: 10px; }
-}
+        this.data.forEach((p, pIdx) => {
+            // Generar filas de tareas
+            let tasksHtml = '';
+            p.subtasks.forEach((t, tIdx) => {
+                tasksHtml += `
+                    <div class="edit-row task-edit">
+                        <span class="material-icons-round icon-drag">subdirectory_arrow_right</span>
+                        <input type="text" class="in-task-name" value="${t.name}" placeholder="Tarea">
+                        <input type="text" class="in-task-min" value="${t.ministry}" placeholder="Ministerio">
+                        <input type="number" class="in-task-prog" value="${t.progress}" placeholder="%">
+                        <button class="btn-del" onclick="app.deleteTask(${pIdx}, ${tIdx})">×</button>
+                    </div>
+                `;
+            });
+
+            // Generar bloque del pilar
+            const div = document.createElement('div');
+            div.className = 'admin-card';
+            div.innerHTML = `
+                <div class="edit-header">
+                    <div class="edit-row">
+                        <span class="material-icons-round">folder</span>
+                        <input type="text" class="in-p-title bold" value="${p.title}" placeholder="Título Pilar">
+                        <input type="text" class="in-p-icon" value="${p.icon}" placeholder="Icono" style="width:80px;">
+                        <button class="btn-del-pilar" onclick="app.deletePillar(${pIdx})">Eliminar</button>
+                    </div>
+                    <input type="text" class="in-p-desc full" value="${p.desc}" placeholder="Descripción">
+                </div>
+                <div class="edit-body">
+                    ${tasksHtml}
+                    <button class="btn-add-task" onclick="app.addTask(${pIdx})">+ Añadir Tarea</button>
+                </div>
+            `;
+            container.appendChild(div);
+        });
+    },
+
+    // --- LÓGICA DE GUARDADO (LA CLAVE) ---
+    saveData: async function() {
+        // 1. RECOLECCIÓN (Harvesting)
+        // Leemos el DOM actual del panel de gestión para actualizar 'this.data'
+        const adminContainer = document.getElementById('admin-container');
+        const pillarCards = adminContainer.getElementsByClassName('admin-card');
+        
+        let newData = [];
+
+        // Iterar sobre cada tarjeta de pilar en el DOM
+        Array.from(pillarCards).forEach((card) => {
+            let pObj = {
+                title: card.querySelector('.in-p-title').value,
+                desc: card.querySelector('.in-p-desc').value,
+                icon: card.querySelector('.in-p-icon').value,
+                subtasks: []
+            };
+
+            // Iterar sobre las tareas dentro de este pilar
+            const taskRows = card.getElementsByClassName('task-edit');
+            Array.from(taskRows).forEach((row) => {
+                pObj.subtasks.push({
+                    name: row.querySelector('.in-task-name').value,
+                    ministry: row.querySelector('.in-task-min').value,
+                    progress: parseFloat(row.querySelector('.in-task-prog').value) || 0
+                });
+            });
+
+            newData.push(pObj);
+        });
+
+        // 2. ACTUALIZAR MEMORIA Y LOCALSTORAGE
+        this.data = newData;
+        localStorage.setItem('cengobData', JSON.stringify(this.data));
+
+        // 3. INTENTAR NUBE
+        if(this.config.script_url) {
+            document.getElementById('loader').classList.remove('hidden');
+            try {
+                await fetch(this.config.script_url, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: {'Content-Type': 'text/plain'}, // Cambio a text/plain para evitar preflight
+                    body: JSON.stringify({ cengob: this.data })
+                });
+                alert("✅ Guardado en Local y Nube (Sheets)");
+            } catch(e) {
+                console.error(e);
+                alert("⚠️ Guardado en Local, pero falló la Nube.");
+            }
+            document.getElementById('loader').classList.add('hidden');
+        } else {
+            alert("✅ Guardado en Local (Configura la nube en el engranaje)");
+        }
+
+        // 4. VOLVER AL DASHBOARD
+        this.showDashboard();
+    },
+
+    // --- ACCIONES DE GESTIÓN ---
+    addTask: function(pIdx) {
+        // Guardamos temporalmente lo que hay en pantalla antes de añadir (para no perder textos)
+        this.tempSaveDOM();
+        this.data[pIdx].subtasks.push({name: "", ministry: "", progress: 0});
+        this.renderGestion();
+    },
+    deleteTask: function(pIdx, tIdx) {
+        this.tempSaveDOM();
+        this.data[pIdx].subtasks.splice(tIdx, 1);
+        this.renderGestion();
+    },
+    addPillar: function() {
+        this.tempSaveDOM();
+        this.data.push({title: "Nuevo Pilar", desc: "", icon: "flag", subtasks: []});
+        this.renderGestion();
+    },
+    deletePillar: function(pIdx) {
+        if(!confirm("¿Borrar pilar completo?")) return;
+        this.tempSaveDOM();
+        this.data.splice(pIdx, 1);
+        this.renderGestion();
+    },
+
+    // Función auxiliar para no perder datos al refrescar la vista de gestión
+    tempSaveDOM: function() {
+        // Similar a saveData pero sin persistir, solo actualiza this.data
+        const adminContainer = document.getElementById('admin-container');
+        if(!adminContainer || adminContainer.innerHTML === "") return;
+        
+        const pillarCards = adminContainer.getElementsByClassName('admin-card');
+        let newData = [];
+        Array.from(pillarCards).forEach((card) => {
+            let pObj = {
+                title: card.querySelector('.in-p-title').value,
+                desc: card.querySelector('.in-p-desc').value,
+                icon: card.querySelector('.in-p-icon').value,
+                subtasks: []
+            };
+            const taskRows = card.getElementsByClassName('task-edit');
+            Array.from(taskRows).forEach((row) => {
+                pObj.subtasks.push({
+                    name: row.querySelector('.in-task-name').value,
+                    ministry: row.querySelector('.in-task-min').value,
+                    progress: parseFloat(row.querySelector('.in-task-prog').value) || 0
+                });
+            });
+            newData.push(pObj);
+        });
+        this.data = newData;
+    },
+
+    // --- NUBE (GET) ---
+    fetchFromCloud: async function() {
+        try {
+            const res = await fetch(this.config.script_url);
+            const json = await res.json();
+            if(json && json.cengob) {
+                this.data = json.cengob;
+                this.renderDashboard(); // Actualizar si llegaron datos nuevos
+                console.log("Datos actualizados desde nube");
+            }
+        } catch(e) {
+            console.log("No se pudo conectar a la nube o formato inválido");
+        }
+    },
+
+    // --- NAVEGACIÓN ---
+    showDashboard: function() {
+        document.getElementById('view-gestion').classList.add('hidden');
+        document.getElementById('view-dashboard').classList.remove('hidden');
+        this.renderDashboard();
+    },
+    showGestion: function() {
+        // Pedir contraseña simple
+        let pass = prompt("Contraseña de Ministro:");
+        if(pass !== "admin123") return alert("Acceso denegado");
+
+        document.getElementById('view-dashboard').classList.add('hidden');
+        document.getElementById('view-gestion').classList.remove('hidden');
+        this.renderGestion();
+    },
+    toggleConfig: function() { document.getElementById('configModal').classList.toggle('hidden'); },
+    saveConfig: function() {
+        const url = document.getElementById('url-script').value;
+        this.config.script_url = url;
+        localStorage.setItem('cengob_url', url);
+        document.getElementById('configModal').classList.add('hidden');
+        alert("URL guardada. Recarga la página si deseas probar la conexión.");
+    },
+
+    // --- GRÁFICOS ---
+    createChart: function(id, val) {
+        this.charts.push(new Chart(document.getElementById(id), {
+            type: 'doughnut',
+            data: {
+                datasets: [{ data: [val, 100-val], backgroundColor: [this.getColor(val), '#e5e7eb'], borderWidth:0, cutout:'75%' }]
+            },
+            options: {responsive:true, maintainAspectRatio:false, plugins:{tooltip:{enabled:false}}}
+        }));
+    },
+    createGauge: function(id, val) {
+        this.charts.push(new Chart(document.getElementById(id), {
+            type: 'doughnut',
+            data: {
+                datasets: [{ data: [val, 100-val], backgroundColor: ['#1e3a8a', '#e5e7eb'], borderWidth:0, cutout:'85%', circumference:180, rotation:270 }]
+            },
+            options: {responsive:true, maintainAspectRatio:false, plugins:{tooltip:{enabled:false}}}
+        }));
+    },
+    getColor: function(val) { return val < 40 ? '#ef4444' : (val < 80 ? '#f59e0b' : '#10b981'); }
+};
+
+document.addEventListener('DOMContentLoaded', () => app.init());
