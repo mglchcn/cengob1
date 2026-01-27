@@ -1,5 +1,5 @@
 const app = {
-    [cite_start]//  [cite: 16-25] DATOS ESTRUCTURADOS
+    // DATOS DE EJEMPLO
     defaultData: [
         {
             title: "Economía para todos",
@@ -9,7 +9,7 @@ const app = {
                 {
                     name: "Shock de Inversión",
                     desc: "Reactivación de obras públicas.",
-                    indName: "% Ejecución Presupuestaria",
+                    indName: "% Ejecución Física", // NUEVO CAMPO
                     indicator: 65,
                     tasks: [{name: "Reglamento Ley 342", ministry: "Min. Economía", progress: 100}],
                     milestones: [{date: "20 Ene", desc: "Firma Convenio"}]
@@ -18,15 +18,15 @@ const app = {
         },
         {
             title: "Bolivia 50/50",
-            desc: "Nuevo pacto fiscal.",
+            desc: "Nuevo pacto fiscal y autonomías.",
             icon: "balance",
             interventions: [
                 {
                     name: "Diálogo Nacional",
                     desc: "Mesas técnicas.",
-                    indName: "Mesas Instaladas",
+                    indName: "Mesas Instaladas", // NUEVO CAMPO
                     indicator: 25,
-                    tasks: [{name: "Visitas gobernaciones", ministry: "Autonomías", progress: 80}],
+                    tasks: [{name: "Cronograma de visitas", ministry: "Autonomías", progress: 80}],
                     milestones: []
                 }
             ]
@@ -43,13 +43,13 @@ const app = {
         const stored = localStorage.getItem('cengobData');
         this.data = stored ? JSON.parse(stored) : JSON.parse(JSON.stringify(this.defaultData));
         
-        // Normalización para evitar errores en datos antiguos
+        // Normalización
         this.data.forEach(p => {
             if(!p.interventions) p.interventions = [];
             p.interventions.forEach(i => {
                 if(!i.tasks) i.tasks = [];
                 if(!i.milestones) i.milestones = [];
-                if(!i.indName) i.indName = "Indicador"; // Valor por defecto
+                if(!i.indName) i.indName = "Indicador"; // Valor default
             });
         });
 
@@ -87,8 +87,6 @@ const app = {
             p.interventions.forEach((inter, iIdx) => {
                 totalInter++;
                 totalMilestones += (inter.milestones||[]).length;
-                
-                // Acumuladores para el promedio del Pilar
                 pilarSum += parseFloat(inter.indicator) || 0;
                 pilarCount++;
 
@@ -110,7 +108,12 @@ const app = {
                     <div class="intervention-card">
                         <div class="intervention-info">
                             <h4>${inter.name}</h4>
-                            <div class="indicator-name">${inter.indName}</div>
+                            
+                            <div class="indicator-highlight">
+                                <span class="material-icons-round" style="font-size:1rem;">analytics</span>
+                                ${inter.indName}: <strong>${inter.indicator}%</strong>
+                            </div>
+
                             <p>${inter.desc}</p>
                             
                             <div class="sub-section-title">Tareas Clave</div>
@@ -122,15 +125,14 @@ const app = {
                         <div class="gauge-mini-wrapper">
                             <canvas id="gauge-p${pIdx}-i${iIdx}"></canvas>
                             <div class="gauge-mini-val">${inter.indicator}%</div>
+                            <div class="gauge-label">META</div>
                         </div>
                     </div>
                 `;
             });
 
-            // Calculo promedio del Pilar
             const pilarAvg = pilarCount > 0 ? Math.round(pilarSum / pilarCount) : 0;
 
-            // Tarjeta Pilar (Con Aguja Grande en el Header)
             const card = document.createElement('div');
             card.className = 'pillar-card';
             card.id = `pillar-${pIdx}`;
@@ -155,19 +157,18 @@ const app = {
             `;
             container.appendChild(card);
 
-            // Crear Gauges (Pilar e Intervenciones)
-            this.createGauge(`gauge-pillar-${pIdx}`, pilarAvg, false); // Grande
+            // Gauges
+            this.createGauge(`gauge-pillar-${pIdx}`, pilarAvg, false);
             p.interventions.forEach((inter, iIdx) => {
-                this.createGauge(`gauge-p${pIdx}-i${iIdx}`, inter.indicator, true); // Pequeño
+                this.createGauge(`gauge-p${pIdx}-i${iIdx}`, inter.indicator, true);
             });
         });
 
-        // Stats globales
         document.getElementById('stat-int').innerText = totalInter;
         document.getElementById('stat-milestones').innerText = totalMilestones;
     },
 
-    // --- RENDER GESTIÓN ---
+    // --- RENDER GESTIÓN (EDITOR CON CAMPO INDICADOR) ---
     renderGestion: function() {
         const container = document.getElementById('admin-container');
         if(!container) return;
@@ -177,7 +178,7 @@ const app = {
             let interventionsHtml = '';
 
             p.interventions.forEach((inter, iIdx) => {
-                // Tareas
+                // Tareas editor
                 let tasksHtml = (inter.tasks || []).map((t, tIdx) => `
                     <div class="admin-task-row">
                         <span class="material-icons-round" style="font-size:1rem; color:#ccc;">task</span>
@@ -187,7 +188,7 @@ const app = {
                     </div>
                 `).join('');
 
-                // Hitos
+                // Hitos editor
                 let msHtml = (inter.milestones || []).map((m, mIdx) => `
                     <div class="admin-ms-row">
                         <span class="material-icons-round" style="font-size:1rem; color:#ccc;">flag</span>
@@ -197,16 +198,19 @@ const app = {
                     </div>
                 `).join('');
 
-                // Bloque Intervención (Con campo para Nombre del Indicador)
                 interventionsHtml += `
                     <div class="admin-intervention-wrapper">
                         <div class="admin-intervention-header">
-                            <input type="text" class="in-i-name input-bold" value="${inter.name}" placeholder="Intervención">
-                            <input type="text" class="in-i-indname" value="${inter.indName}" placeholder="Nombre Indicador">
-                            <input type="number" class="in-i-ind input-min" value="${inter.indicator}" placeholder="%">
-                            <button class="btn-del" onclick="app.delItem('intervention', ${pIdx}, ${iIdx})">🗑️</button>
+                            <div class="admin-int-row-1">
+                                <input type="text" class="in-i-name input-bold" value="${inter.name}" placeholder="Nombre Intervención">
+                                <input type="number" class="in-i-ind input-min" value="${inter.indicator}" placeholder="% Val">
+                                <button class="btn-del" onclick="app.delItem('intervention', ${pIdx}, ${iIdx})">🗑️</button>
+                            </div>
+                            <div class="admin-int-row-2">
+                                <input type="text" class="in-i-desc" value="${inter.desc}" placeholder="Descripción">
+                                <input type="text" class="in-i-indname" value="${inter.indName}" placeholder="Nombre Indicador (Ej: % Avance)">
+                            </div>
                         </div>
-                        <input type="text" class="in-i-desc full-width" value="${inter.desc}" placeholder="Descripción" style="margin-bottom:10px;">
                         
                         <div class="edit-list-group">
                             ${tasksHtml}
@@ -236,7 +240,7 @@ const app = {
         });
     },
 
-    // --- COSECHA DATOS (CRÍTICO) ---
+    // --- COSECHA DATOS ---
     harvestData: function() {
         const container = document.getElementById('admin-container');
         if(!container || container.innerHTML === "") return;
@@ -248,7 +252,7 @@ const app = {
             let pObj = {
                 title: pWrap.querySelector('.in-p-title').value,
                 desc: pWrap.querySelector('.in-p-desc').value,
-                icon: 'flag', // Simplificado
+                icon: 'flag',
                 interventions: []
             };
 
@@ -256,22 +260,20 @@ const app = {
             Array.from(iWrappers).forEach(iWrap => {
                 let iObj = {
                     name: iWrap.querySelector('.in-i-name').value,
-                    indName: iWrap.querySelector('.in-i-indname').value,
+                    indName: iWrap.querySelector('.in-i-indname').value, // CAPTURA NOMBRE INDICADOR
                     desc: iWrap.querySelector('.in-i-desc').value,
                     indicator: parseFloat(iWrap.querySelector('.in-i-ind').value) || 0,
                     tasks: [],
                     milestones: []
                 };
 
-                // Tareas
                 const tRows = iWrap.querySelectorAll('.admin-task-row');
                 tRows.forEach(r => iObj.tasks.push({
                     name: r.querySelector('.in-t-name').value,
                     ministry: r.querySelector('.in-t-min').value,
-                    progress: 0 // Simplificado
+                    progress: 0
                 }));
 
-                // Hitos
                 const mRows = iWrap.querySelectorAll('.admin-ms-row');
                 mRows.forEach(r => iObj.milestones.push({
                     date: r.querySelector('.in-m-date').value,
@@ -285,9 +287,8 @@ const app = {
         this.data = newData;
     },
 
-    // --- ACCIONES ---
+    // --- ACCIONES CRUD ---
     addPillar: function() { this.harvestData(); this.data.push({title:"Nuevo", desc:"...", icon:"flag", interventions:[]}); this.renderGestion(); },
-    
     addItem: function(type, pIdx, iIdx) {
         this.harvestData();
         if(type === 'intervention') this.data[pIdx].interventions.push({name:"Nueva", indName:"Indicador", desc:"", indicator:0, tasks:[], milestones:[]});
@@ -295,7 +296,6 @@ const app = {
         if(type === 'milestone') this.data[pIdx].interventions[iIdx].milestones.push({date:"", desc:""});
         this.renderGestion();
     },
-
     delItem: function(type, pIdx, iIdx, xIdx) {
         this.harvestData();
         if(type === 'pillar' && confirm("¿Borrar?")) this.data.splice(pIdx, 1);
@@ -348,7 +348,7 @@ const app = {
         if(!ctx) return;
         this.charts.push(new Chart(ctx, {
             type: 'doughnut',
-            data: { datasets: [{ data: [val, 100-val], backgroundColor: [this.getColor(val), '#e2e8f0'], borderWidth:0, cutout: isMini?'70%':'85%', circumference:180, rotation:270 }] },
+            data: { datasets: [{ data: [val, 100-val], backgroundColor: [this.getColor(val), '#e2e8f0'], borderWidth:0, cutout: isMini?'75%':'85%', circumference:180, rotation:270 }] },
             options: { responsive:true, maintainAspectRatio:false, plugins:{tooltip:{enabled:false}} }
         }));
     },
