@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CENGOB | Gestión Estratégica</title>
+    <title>CENGOB | Sistema de Gestión</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
@@ -13,7 +13,7 @@
 
     <div id="loader" class="loading-overlay hidden">
         <span class="material-icons-round spin">sync</span>
-        <p>Guardando...</p>
+        <p>Procesando...</p>
     </div>
 
     <nav class="navbar">
@@ -25,19 +25,19 @@
             </div>
         </div>
         <div class="nav-actions">
-            <button class="icon-btn" onclick="app.toggleConfig()" title="Configurar Nube">
+            <button class="icon-btn" onclick="app.toggleConfig()">
                 <span class="material-icons-round">settings</span>
             </button>
             <button class="btn-primary-sm" onclick="app.toggleView('gestion')">
-                <span class="material-icons-round" style="margin-right:5px;">edit_note</span> Editor
+                <span class="material-icons-round" style="margin-right:5px;">edit_note</span> Gestionar
             </button>
         </div>
     </nav>
 
     <div id="configModal" class="modal hidden">
         <div class="modal-content config-box">
-            <h3>Conexión Nube (Google Sheets)</h3>
-            <p class="subtitle">URL del Google Apps Script (Web App)</p>
+            <h3>Conexión Nube</h3>
+            <p class="subtitle">URL del Script Google (Web App)</p>
             <input type="text" id="url-script" placeholder="https://script.google.com/.../exec">
             <div style="display:flex; gap:10px; margin-top:15px;">
                 <button onclick="app.toggleConfig()" class="btn-secondary flex-1">Cerrar</button>
@@ -52,53 +52,42 @@
             <div class="dashboard-header">
                 <div class="kpi-main-card">
                     <div style="flex:1">
-                        <h1 style="margin:0; font-size:1.5rem; color:var(--primary);">Tablero de Mando 2026</h1>
-                        <p style="margin:5px 0 15px 0; color:var(--text-light); font-size:0.9rem;">Seguimiento de Intervenciones Estratégicas</p>
+                        <h1 style="margin:0; font-size:1.5rem; color:var(--primary);">Tablero de Control 2026</h1>
+                        <p style="margin:5px 0 15px 0; color:var(--text-light); font-size:0.9rem;">Seguimiento Estratégico Presidencial</p>
                         <div class="stats-row">
                             <div><span class="stat-label">Intervenciones</span><span class="stat-val" id="stat-int">0</span></div>
-                            <div><span class="stat-label">Tareas</span><span class="stat-val" id="stat-task">0</span></div>
+                            <div><span class="stat-label">Hitos</span><span class="stat-val" id="stat-milestones">0</span></div>
                         </div>
                     </div>
                     <div class="gauge-wrapper">
                         <canvas id="chartGlobal"></canvas>
                         <div class="gauge-value" id="global-percent">0%</div>
-                        <div style="text-align:center; font-size:0.6rem; color:#aaa; margin-top:-5px;">EJECUCIÓN TOTAL</div>
-                    </div>
-                </div>
-
-                <div class="timeline-card">
-                    <h3 style="margin:0 0 15px 0; font-size:1rem;">Hitos Enero</h3>
-                    <div class="timeline-track">
-                        <div class="t-item done"><div>20</div><small>Encuesta</small></div>
-                        <div class="t-item active"><div>22</div><small>Priorización</small></div>
-                        <div class="t-item"><div>26</div><small>Misión</small></div>
-                        <div class="t-item"><div>30</div><small>Cumbre</small></div>
+                        <div style="text-align:center; font-size:0.6rem; color:#aaa; margin-top:-5px;">CUMPLIMIENTO</div>
                     </div>
                 </div>
             </div>
 
-            <h2 class="section-title">Pilares e Intervenciones</h2>
-            <div class="pillars-grid" id="pillars-container">
-                </div>
+            <h2 class="section-title">Pilares, Intervenciones e Hitos</h2>
+            <div class="pillars-grid" id="pillars-container"></div>
         </div>
 
         <div id="view-gestion" class="hidden">
             <div class="gestion-header-sticky">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div class="container-narrow" style="display:flex; justify-content:space-between; align-items:center;">
                     <h2 style="margin:0; color:var(--primary);">Editor de Estructura</h2>
                     <div style="display:flex; gap:10px;">
                         <button class="btn-secondary" onclick="app.toggleView('dashboard')">Cancelar</button>
                         <button class="btn-primary-sm" onclick="app.saveData()">
-                            <span class="material-icons-round" style="margin-right:5px;">save</span> Guardar Cambios
+                            <span class="material-icons-round" style="margin-right:5px;">save</span> Guardar Todo
                         </button>
                     </div>
                 </div>
             </div>
             
-            <div id="admin-container" class="admin-list-container">
-                </div>
-            
-            <button class="btn-dashed full-width mt-20" onclick="app.addPillar()">+ Añadir Nuevo Pilar</button>
+            <div class="container-narrow">
+                <div id="admin-container" class="admin-list-container"></div>
+                <button class="btn-dashed full-width mt-20" onclick="app.addPillar()">+ Añadir Nuevo Pilar</button>
+            </div>
         </div>
 
     </div>
