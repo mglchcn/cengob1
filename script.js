@@ -1,22 +1,20 @@
 const app = {
-    // DATOS DE EJEMPLO ACTUALIZADOS
+    // DATOS DE EJEMPLO
     defaultData: [
         {
-            title: "Economía para todos",
-            desc: "Fomento del 'capitalismo para todos'.",
-            icon: "paid",
+            title: "Reactivación Económica",
+            desc: "Impulso a la industria nacional y empleo.",
+            icon: "trending_up",
             interventions: [
                 {
-                    name: "Shock de Inversión",
-                    desc: "Reactivación de obras públicas.",
-                    indName: "% Ejecución Física",
-                    indicator: 65,
-                    // NUEVOS CAMPOS
-                    indResultado: "Incremento del PIB sectorial al 4%",
-                    indProducto: "500km de carreteras rehabilitadas",
-                    criticalPath: "Aprobación de financiamiento externo",
-                    tasks: [{name: "Reglamento Ley 342", ministry: "Min. Economía", progress: 100}],
-                    milestones: [{date: "20 Ene", desc: "Firma Convenio"}]
+                    name: "Crédito SI-BOLIVIA",
+                    desc: "Sustitución de importaciones.",
+                    indName: "% Colocación",
+                    indicator: 85,
+                    indResultado: "Bs 1.200M colocados",
+                    indProducto: "4.500 PyMEs beneficiadas",
+                    criticalPath: "Fondeo Fideicomiso",
+                    tasks: [], milestones: []
                 }
             ]
         }
@@ -25,44 +23,128 @@ const app = {
     data: [], 
     config: { script_url: localStorage.getItem('cengob_url') || '' },
     charts: [],
+    carouselInterval: null,
+    carouselIndex: 0,
+    isCarouselMode: false,
 
     init: function() {
         if(document.getElementById('url-script')) document.getElementById('url-script').value = this.config.script_url;
         
         const stored = localStorage.getItem('cengobData');
         this.data = stored ? JSON.parse(stored) : JSON.parse(JSON.stringify(this.defaultData));
+        this.normalizeData();
+
+        this.renderDashboard();
+        this.updateGlobalKPIs();
         
-        // Normalización: Aseguramos que existan los nuevos campos
+        if(this.config.script_url) this.fetchFromCloud();
+
+        // Escuchar teclado para salir de carrusel (ESC)
+        document.addEventListener('keydown', (e) => {
+            if(e.key === 'Escape' && this.isCarouselMode) this.toggleCarousel();
+        });
+    },
+
+    normalizeData: function() {
         this.data.forEach(p => {
             if(!p.interventions) p.interventions = [];
             p.interventions.forEach(i => {
                 if(!i.tasks) i.tasks = [];
                 if(!i.milestones) i.milestones = [];
-                if(!i.indName) i.indName = "Indicador";
-                // Inicializar vacíos si no existen
+                if(!i.indName) i.indName = "Avance";
                 if(!i.indResultado) i.indResultado = "";
                 if(!i.indProducto) i.indProducto = "";
                 if(!i.criticalPath) i.criticalPath = "";
             });
         });
-
-        this.renderDashboard();
-        if(this.config.script_url) this.fetchFromCloud();
     },
 
-    // --- VISTAS ---
+    // --- LÓGICA DE VISTAS ---
     toggleView: function(view) {
+        if(this.isCarouselMode) this.toggleCarousel(); // Apagar carrusel si cambia vista
         document.getElementById('view-dashboard').classList.toggle('hidden', view === 'gestion');
         document.getElementById('view-gestion').classList.toggle('hidden', view !== 'gestion');
         if(view === 'gestion') this.renderGestion();
-        else this.renderDashboard();
+        else { this.renderDashboard(); this.updateGlobalKPIs(); }
     },
 
-    toggleAccordion: function(idx) {
-        document.getElementById(`pillar-${idx}`).classList.toggle('active');
+    toggleConfig: () => document.getElementById('configModal').classList.toggle('hidden'),
+
+    // --- CARRUSEL AUTOMÁTICO ---
+    toggleCarousel: function() {
+        const btn = document.getElementById('icon-play');
+        const container = document.getElementById('view-dashboard');
+        const bar = document.getElementById('carousel-status-bar');
+        
+        this.isCarouselMode = !this.isCarouselMode;
+        
+        if(this.isCarouselMode) {
+            btn.innerText = "stop_circle";
+            container.classList.add('carousel-mode');
+            bar.classList.remove('hidden');
+            // Fullscreen opcional
+            if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+            this.startCarouselLoop();
+        } else {
+            btn.innerText = "play_circle";
+            container.classList.remove('carousel-mode');
+            bar.classList.add('hidden');
+            if (document.exitFullscreen) document.exitFullscreen();
+            this.stopCarouselLoop();
+            // Mostrar todos de nuevo
+            document.querySelectorAll('.pillar-card').forEach(c => c.classList.remove('active-slide'));
+        }
     },
 
-    // --- RENDER DASHBOARD ---
+    startCarouselLoop: function() {
+        this.carouselIndex = 0;
+        this.showSlide(0);
+        
+        // Loop cada 10 seg
+        this.carouselInterval = setInterval(() => {
+            this.carouselIndex = (this.carouselIndex + 1) % this.data.length;
+            this.showSlide(this.carouselIndex);
+        }, 10000); // 10 segundos
+    },
+
+    stopCarouselLoop: function() {
+        clearInterval(this.carouselInterval);
+        document.getElementById('carousel-bar').style.width = '0%';
+    },
+
+    showSlide: function(idx) {
+        const cards = document.querySelectorAll('.pillar-card');
+        cards.forEach((c, i) => {
+            c.classList.toggle('active-slide', i === idx);
+        });
+        
+        // Reiniciar barra de progreso css
+        const bar = document.getElementById('carousel-bar');
+        bar.style.transition = 'none';
+        bar.style.width = '0%';
+        setTimeout(() => {
+            bar.style.transition = 'width 10s linear';
+            bar.style.width = '100%';
+        }, 50);
+    },
+
+    // --- KPIS GLOBALES ---
+    updateGlobalKPIs: function() {
+        let totalSum = 0, count = 0, alerts = 0;
+        this.data.forEach(p => {
+            p.interventions.forEach(i => {
+                let val = parseFloat(i.indicator) || 0;
+                totalSum += val;
+                count++;
+                if(i.criticalPath && val < 50) alerts++; // Lógica simple de alerta
+            });
+        });
+        const globalAvg = count > 0 ? Math.round(totalSum / count) : 0;
+        document.getElementById('kpi-global').innerText = globalAvg + "%";
+        document.getElementById('kpi-alerts').innerText = alerts;
+    },
+
+    // --- RENDER DASHBOARD (MASTER GRID) ---
     renderDashboard: function() {
         const container = document.getElementById('pillars-container');
         if(!container) return;
@@ -70,96 +152,69 @@ const app = {
         this.charts.forEach(c => c.destroy());
         this.charts = [];
 
-        let totalInter = 0, totalMilestones = 0;
-
         this.data.forEach((p, pIdx) => {
             let pilarSum = 0, pilarCount = 0;
             let interventionsHtml = '';
             
             p.interventions.forEach((inter, iIdx) => {
-                totalInter++;
-                totalMilestones += (inter.milestones||[]).length;
                 pilarSum += parseFloat(inter.indicator) || 0;
                 pilarCount++;
-
-                const tasksHtml = (inter.tasks||[]).map(t => `
-                    <div class="task-row">
-                        <span>${t.name} <span class="t-badge">${t.ministry}</span></span>
-                    </div>`).join('');
-
-                const msHtml = (inter.milestones||[]).map(m => `
-                    <div class="ms-row">
-                        <span class="material-icons-round" style="font-size:1rem; color:var(--success);">check_circle</span>
-                        <span class="ms-date">${m.date}</span>
-                        <span>${m.desc}</span>
-                    </div>`).join('');
+                
+                // Tags dinámicos
+                let tags = '';
+                if(inter.indResultado) tags += `<span class="tag res"><span class="material-icons-round" style="font-size:10px">ads_click</span> ${inter.indResultado}</span>`;
+                if(inter.indProducto) tags += `<span class="tag prod"><span class="material-icons-round" style="font-size:10px">inventory_2</span> ${inter.indProducto}</span>`;
+                if(inter.criticalPath) tags += `<span class="tag crit"><span class="material-icons-round" style="font-size:10px">warning</span> ${inter.criticalPath}</span>`;
 
                 interventionsHtml += `
-                    <div class="intervention-card">
-                        <div class="intervention-info">
-                            <h4>${inter.name}</h4>
-                            
-                            <div class="indicator-highlight">
-                                <span class="material-icons-round" style="font-size:1rem;">analytics</span>
-                                ${inter.indName}: <strong>${inter.indicator}%</strong>
-                            </div>
-
-                            <p>${inter.desc}</p>
-                            
-                            <div style="background:#f8fafc; padding:10px; border-radius:6px; border:1px solid #e2e8f0; margin-bottom:15px; font-size:0.8rem;">
-                                <div style="margin-bottom:5px;"><strong>🎯 Ind. Resultado:</strong> <span style="color:#475569;">${inter.indResultado || '...'}</span></div>
-                                <div style="margin-bottom:5px;"><strong>📦 Ind. Producto:</strong> <span style="color:#475569;">${inter.indProducto || '...'}</span></div>
-                                <div><strong>⚠️ Ruta Crítica:</strong> <span style="color:#ef4444; font-weight:600;">${inter.criticalPath || '...'}</span></div>
-                            </div>
-
-                            <div class="sub-section-title">Tareas Clave</div>
-                            <div class="tasks-list">${tasksHtml || '<small>Sin tareas</small>'}</div>
-
-                            <div class="sub-section-title">Hitos</div>
-                            <div class="milestones-list">${msHtml || '<small>-</small>'}</div>
+                    <div class="int-row">
+                        <div class="int-chart">
+                            <canvas id="chart-p${pIdx}-i${iIdx}"></canvas>
+                            <div class="int-val-center">${inter.indicator}%</div>
                         </div>
-                        <div class="gauge-mini-wrapper">
-                            <canvas id="gauge-p${pIdx}-i${iIdx}"></canvas>
-                            <div class="gauge-mini-val">${inter.indicator}%</div>
-                            <div class="gauge-label">META</div>
+                        <div class="int-details">
+                            <h4>${inter.name}</h4>
+                            <p>${inter.desc}</p>
+                            <div class="strategic-tags">${tags}</div>
                         </div>
                     </div>
                 `;
             });
 
             const pilarAvg = pilarCount > 0 ? Math.round(pilarSum / pilarCount) : 0;
+            const color = this.getColor(pilarAvg);
+
             const card = document.createElement('div');
             card.className = 'pillar-card';
-            card.id = `pillar-${pIdx}`;
             card.innerHTML = `
-                <div class="pillar-header" onclick="app.toggleAccordion(${pIdx})">
-                    <div class="icon-box"><span class="material-icons-round">${p.icon}</span></div>
-                    <div style="flex:1;">
-                        <h3 style="margin:0; font-size:1.2rem; color:var(--primary);">${p.title}</h3>
-                        <p style="margin:0; font-size:0.9rem; color:var(--text-light);">${p.desc}</p>
+                <div class="p-header">
+                    <div class="p-title-box">
+                        <div class="p-icon"><span class="material-icons-round">${p.icon}</span></div>
+                        <div>
+                            <h3 style="margin:0; font-size:1.1rem; color:var(--primary);">${p.title}</h3>
+                            <span style="font-size:0.8rem; color:var(--text-muted);">${p.interventions.length} Intervenciones</span>
+                        </div>
                     </div>
-                    <div class="gauge-pillar-wrapper">
+                    <div class="p-gauge-box">
                         <canvas id="gauge-pillar-${pIdx}"></canvas>
-                        <div class="gauge-pillar-val">${pilarAvg}%</div>
+                        <div class="p-gauge-val">${pilarAvg}%</div>
                     </div>
-                    <span class="material-icons-round accordion-icon">expand_more</span>
                 </div>
-                <div class="interventions-container">
-                    ${interventionsHtml || '<div style="padding:20px;text-align:center;">Sin intervenciones</div>'}
+                <div class="p-body">
+                    ${interventionsHtml || '<div style="text-align:center;color:#ccc;font-size:0.8rem;">Sin datos</div>'}
                 </div>
             `;
             container.appendChild(card);
-            this.createGauge(`gauge-pillar-${pIdx}`, pilarAvg, false);
+
+            // Renderizar Gráficos
+            this.createGauge(`gauge-pillar-${pIdx}`, pilarAvg, true);
             p.interventions.forEach((inter, iIdx) => {
-                this.createGauge(`gauge-p${pIdx}-i${iIdx}`, inter.indicator, true);
+                this.createGauge(`chart-p${pIdx}-i${iIdx}`, inter.indicator, false);
             });
         });
-
-        document.getElementById('stat-int').innerText = totalInter;
-        document.getElementById('stat-milestones').innerText = totalMilestones;
     },
 
-    // --- RENDER GESTIÓN (EDITOR CON NUEVOS CAMPOS) ---
+    // --- RENDER EDITOR (FORMULARIO) ---
     renderGestion: function() {
         const container = document.getElementById('admin-container');
         if(!container) return;
@@ -167,79 +222,20 @@ const app = {
 
         this.data.forEach((p, pIdx) => {
             let interventionsHtml = '';
-
             p.interventions.forEach((inter, iIdx) => {
-                let tasksHtml = (inter.tasks || []).map((t, tIdx) => `
-                    <div class="admin-task-row">
-                        <input type="text" class="in-t-name" value="${t.name}" placeholder="Nombre de Tarea">
-                        <input type="text" class="in-t-min" value="${t.ministry}" placeholder="Responsable">
-                        <button class="btn-del" onclick="app.delItem('task', ${pIdx}, ${iIdx}, ${tIdx})">×</button>
-                    </div>
-                `).join('');
-
-                let msHtml = (inter.milestones || []).map((m, mIdx) => `
-                    <div class="admin-ms-row">
-                        <input type="text" class="in-m-date input-min" value="${m.date}" placeholder="Fecha">
-                        <input type="text" class="in-m-desc" value="${m.desc}" placeholder="Hito">
-                        <button class="btn-del" onclick="app.delItem('milestone', ${pIdx}, ${iIdx}, ${mIdx})">×</button>
-                    </div>
-                `).join('');
-
                 interventionsHtml += `
-                    <div class="admin-intervention-wrapper">
-                        <div class="admin-intervention-header">
-                            <div class="admin-int-row-1">
-                                <div style="flex:2;">
-                                    <label class="lbl">Nombre Intervención</label>
-                                    <input type="text" class="in-i-name input-bold" value="${inter.name}">
-                                </div>
-                                <div style="flex:1;">
-                                    <label class="lbl">% Avance</label>
-                                    <input type="number" class="in-i-ind input-min" value="${inter.indicator}">
-                                </div>
-                                <div style="display:flex; align-items:flex-end;">
-                                    <button class="btn-del" onclick="app.delItem('intervention', ${pIdx}, ${iIdx})">🗑️</button>
-                                </div>
-                            </div>
-
-                            <div class="admin-int-row-2">
-                                <div style="flex:2;">
-                                    <label class="lbl">Descripción</label>
-                                    <input type="text" class="in-i-desc" value="${inter.desc}">
-                                </div>
-                                <div style="flex:1;">
-                                    <label class="lbl">Etiqueta Indicador</label>
-                                    <input type="text" class="in-i-indname" value="${inter.indName}">
-                                </div>
-                            </div>
-
-                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
-                                <div>
-                                    <label class="lbl" style="color:#059669;">Ind. Resultado</label>
-                                    <input type="text" class="in-i-res" value="${inter.indResultado || ''}" placeholder="Ej: Reducción del déficit...">
-                                </div>
-                                <div>
-                                    <label class="lbl" style="color:#2563eb;">Ind. Producto</label>
-                                    <input type="text" class="in-i-prod" value="${inter.indProducto || ''}" placeholder="Ej: 5 Hospitales entregados">
-                                </div>
-                            </div>
-
-                            <div style="margin-top:10px;">
-                                <label class="lbl" style="color:#dc2626;">Ruta Crítica</label>
-                                <input type="text" class="in-i-path" value="${inter.criticalPath || ''}" placeholder="Ej: Aprobación ALP, Desembolso...">
-                            </div>
-
+                    <div class="admin-intervention-wrapper" style="border-left:4px solid var(--accent); padding:15px; margin-top:15px; background:#f8fafc;">
+                        <div style="display:grid; grid-template-columns: 2fr 1fr auto; gap:10px; margin-bottom:10px;">
+                            <div><label>Nombre Intervención</label><input type="text" class="in-i-name" value="${inter.name}"></div>
+                            <div><label>% Avance</label><input type="number" class="in-i-ind" value="${inter.indicator}"></div>
+                            <div style="display:flex; align-items:flex-end;"><button class="icon-btn" onclick="app.delItem('intervention', ${pIdx}, ${iIdx})" style="color:var(--danger)">delete</button></div>
                         </div>
+                        <div style="margin-bottom:10px;"><label>Descripción</label><input type="text" class="in-i-desc" value="${inter.desc}"></div>
                         
-                        <div class="edit-list-group">
-                            <label class="lbl-small">Tareas</label>
-                            ${tasksHtml}
-                            <button class="btn-add-mini" onclick="app.addItem('task', ${pIdx}, ${iIdx})">+ Añadir Tarea</button>
-                        </div>
-                        <div class="edit-list-group" style="margin-top:10px;">
-                            <label class="lbl-small">Hitos</label>
-                            ${msHtml}
-                            <button class="btn-add-mini" onclick="app.addItem('milestone', ${pIdx}, ${iIdx})">+ Añadir Hito</button>
+                        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
+                            <div><label style="color:#059669">Ind. Resultado</label><input type="text" class="in-i-res" value="${inter.indResultado}"></div>
+                            <div><label style="color:#2563eb">Ind. Producto</label><input type="text" class="in-i-prod" value="${inter.indProducto}"></div>
+                            <div><label style="color:#dc2626">Ruta Crítica</label><input type="text" class="in-i-path" value="${inter.criticalPath}"></div>
                         </div>
                     </div>
                 `;
@@ -248,145 +244,125 @@ const app = {
             const div = document.createElement('div');
             div.className = 'admin-pilar-wrapper';
             div.innerHTML = `
-                <div class="admin-pilar-header">
+                <div style="display:flex; gap:15px; align-items:center; border-bottom:1px solid #eee; padding-bottom:15px;">
+                    <span class="material-icons-round" style="color:var(--text-muted); cursor:pointer;">${p.icon}</span>
                     <div style="flex:1;">
-                        <label class="lbl">Pilar</label>
-                        <input type="text" class="in-p-title input-bold" value="${p.title}">
+                        <label>Título del Pilar</label>
+                        <input type="text" class="in-p-title" style="font-weight:700;" value="${p.title}">
                     </div>
-                    <div style="flex:2;">
-                        <label class="lbl">Descripción Pilar</label>
-                        <input type="text" class="in-p-desc" value="${p.desc}">
-                    </div>
-                    <div style="display:flex; align-items:flex-end;">
-                        <button class="btn-del" onclick="app.delItem('pillar', ${pIdx})">×</button>
-                    </div>
+                    <button class="icon-btn" onclick="app.delItem('pillar', ${pIdx})" style="color:var(--text-muted)">close</button>
                 </div>
                 ${interventionsHtml}
-                <button class="btn-dashed" style="padding:10px; margin-top:10px;" onclick="app.addItem('intervention', ${pIdx})">+ Nueva Intervención</button>
+                <button class="btn-dashed-lg" style="margin-top:10px; padding:8px; font-size:0.8rem;" onclick="app.addItem('intervention', ${pIdx})">+ Intervención</button>
             `;
             container.appendChild(div);
         });
     },
 
-    // --- COSECHA DATOS (ACTUALIZADO) ---
+    // --- GUARDADO Y SYNC (SIN CAMBIOS ESTRUCTURALES, SOLO SELECTORES) ---
     harvestData: function() {
         const container = document.getElementById('admin-container');
         if(!container || container.innerHTML === "") return;
-
         const pWrappers = container.getElementsByClassName('admin-pilar-wrapper');
         let newData = [];
 
         Array.from(pWrappers).forEach(pWrap => {
             let pObj = {
                 title: pWrap.querySelector('.in-p-title').value,
-                desc: pWrap.querySelector('.in-p-desc').value,
-                icon: 'flag',
+                desc: "", // Simplificado para este diseño
+                icon: "label_important",
                 interventions: []
             };
 
             const iWrappers = pWrap.getElementsByClassName('admin-intervention-wrapper');
             Array.from(iWrappers).forEach(iWrap => {
-                let iObj = {
+                pObj.interventions.push({
                     name: iWrap.querySelector('.in-i-name').value,
-                    indName: iWrap.querySelector('.in-i-indname').value,
                     desc: iWrap.querySelector('.in-i-desc').value,
                     indicator: parseFloat(iWrap.querySelector('.in-i-ind').value) || 0,
-                    // CAPTURA DE NUEVOS CAMPOS
                     indResultado: iWrap.querySelector('.in-i-res').value,
                     indProducto: iWrap.querySelector('.in-i-prod').value,
                     criticalPath: iWrap.querySelector('.in-i-path').value,
-                    
-                    tasks: [],
-                    milestones: []
-                };
-
-                const tRows = iWrap.querySelectorAll('.admin-task-row');
-                tRows.forEach(r => iObj.tasks.push({
-                    name: r.querySelector('.in-t-name').value,
-                    ministry: r.querySelector('.in-t-min').value,
-                    progress: 0
-                }));
-
-                const mRows = iWrap.querySelectorAll('.admin-ms-row');
-                mRows.forEach(r => iObj.milestones.push({
-                    date: r.querySelector('.in-m-date').value,
-                    desc: r.querySelector('.in-m-desc').value
-                }));
-
-                pObj.interventions.push(iObj);
+                    tasks: [], milestones: [] // Se mantienen vacíos en esta vista simplificada
+                });
             });
             newData.push(pObj);
         });
         this.data = newData;
     },
 
-    // --- ACCIONES CRUD ---
-    addPillar: function() { this.harvestData(); this.data.push({title:"Nuevo Pilar", desc:"...", icon:"flag", interventions:[]}); this.renderGestion(); },
+    addPillar: function() { this.harvestData(); this.data.push({title:"Nuevo Eje", icon:"flag", interventions:[]}); this.renderGestion(); },
     addItem: function(type, pIdx, iIdx) {
         this.harvestData();
-        if(type === 'intervention') this.data[pIdx].interventions.push({name:"Nueva", indName:"% Avance", desc:"", indicator:0, indResultado:"", indProducto:"", criticalPath:"", tasks:[], milestones:[]});
-        if(type === 'task') this.data[pIdx].interventions[iIdx].tasks.push({name:"", ministry:""});
-        if(type === 'milestone') this.data[pIdx].interventions[iIdx].milestones.push({date:"", desc:""});
+        if(type === 'intervention') this.data[pIdx].interventions.push({name:"Nueva Meta", indicator:0, desc:"", indResultado:"", indProducto:"", criticalPath:""});
+        else if(type === 'pillar') this.data.splice(pIdx, 1);
+        else if(type === 'intervention_del') this.data[pIdx].interventions.splice(iIdx, 1);
         this.renderGestion();
     },
-    delItem: function(type, pIdx, iIdx, xIdx) {
-        this.harvestData();
-        if(type === 'pillar' && confirm("¿Borrar Pilar?")) this.data.splice(pIdx, 1);
-        if(type === 'intervention' && confirm("¿Borrar Intervención?")) this.data[pIdx].interventions.splice(iIdx, 1);
-        if(type === 'task') this.data[pIdx].interventions[iIdx].tasks.splice(xIdx, 1);
-        if(type === 'milestone') this.data[pIdx].interventions[iIdx].milestones.splice(xIdx, 1);
-        this.renderGestion();
+    delItem: function(type, pIdx, iIdx) {
+        if(confirm("¿Confirmar eliminación?")) {
+            if(type=='pillar') this.addItem('pillar', pIdx);
+            if(type=='intervention') this.addItem('intervention_del', pIdx, iIdx);
+        }
     },
 
-    // --- GUARDAR Y SYNC ---
     saveData: async function() {
         this.harvestData();
         localStorage.setItem('cengobData', JSON.stringify(this.data));
-        
         if(this.config.script_url) {
             document.getElementById('loader').classList.remove('hidden');
             try {
-                await fetch(this.config.script_url, {
-                    method: 'POST', mode: 'no-cors',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(this.data)
-                });
-                alert("✅ Sincronizado con Google Sheets");
-            } catch(e) { alert("⚠️ Guardado local (Error Nube)"); }
+                await fetch(this.config.script_url, { method: 'POST', mode: 'no-cors', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(this.data) });
+                alert("Sincronizado");
+            } catch(e) { alert("Error de conexión"); }
             document.getElementById('loader').classList.add('hidden');
-        } else { alert("✅ Guardado local"); }
+        }
         this.toggleView('dashboard');
+    },
+
+    saveConfig: function() {
+        this.config.script_url = document.getElementById('url-script').value;
+        localStorage.setItem('cengob_url', this.config.script_url);
+        this.toggleConfig();
+        this.fetchFromCloud();
     },
 
     fetchFromCloud: async function() {
         try {
             const res = await fetch(this.config.script_url);
             const json = await res.json();
-            if(json.data) {
-                 this.data = json.data; 
-                 this.renderDashboard();
-                 localStorage.setItem('cengobData', JSON.stringify(this.data));
-            }
+            if(json.data) { this.data = json.data; this.renderDashboard(); this.updateGlobalKPIs(); }
         } catch(e) { console.log("Offline"); }
     },
 
-    toggleConfig: () => document.getElementById('configModal').classList.toggle('hidden'),
-    saveConfig: function() {
-        const url = document.getElementById('url-script').value;
-        this.config.script_url = url;
-        localStorage.setItem('cengob_url', url);
-        document.getElementById('configModal').classList.add('hidden');
-        this.fetchFromCloud();
-    },
-
-    // --- GAUGE ---
-    createGauge: function(id, val, isMini) {
+    // --- GRÁFICOS OPTIMIZADOS ---
+    createGauge: function(id, val, isPillar) {
         const ctx = document.getElementById(id);
         if(!ctx) return;
+        
+        // Colores profesionales
+        let color = val < 40 ? '#ef4444' : (val < 80 ? '#f59e0b' : '#10b981');
+        let cutout = isPillar ? '85%' : '75%';
+        
         this.charts.push(new Chart(ctx, {
             type: 'doughnut',
-            data: { datasets: [{ data: [val, 100-val], backgroundColor: [this.getColor(val), '#e2e8f0'], borderWidth:0, cutout: isMini?'75%':'85%', circumference:180, rotation:270 }] },
-            options: { responsive:true, maintainAspectRatio:false, plugins:{tooltip:{enabled:false}} }
+            data: { 
+                datasets: [{ 
+                    data: [val, 100-val], 
+                    backgroundColor: [color, '#e2e8f0'], 
+                    borderWidth: 0, 
+                    borderRadius: 20 // Bordes redondeados en la barra
+                }] 
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false, 
+                cutout: cutout, 
+                circumference: 360, // Círculo completo para estilo moderno
+                rotation: 0,
+                plugins: { tooltip: { enabled: false } },
+                animation: { animateScale: true, animateRotate: true }
+            }
         }));
     },
     getColor: function(val) { return val < 40 ? '#ef4444' : (val < 80 ? '#f59e0b' : '#10b981'); }
