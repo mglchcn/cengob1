@@ -1,5 +1,5 @@
 const app = {
-    // DATOS DE EJEMPLO (Se usarán si no hay nada en la nube)
+    // DATOS DE EJEMPLO ACTUALIZADOS
     defaultData: [
         {
             title: "Economía para todos",
@@ -11,6 +11,10 @@ const app = {
                     desc: "Reactivación de obras públicas.",
                     indName: "% Ejecución Física",
                     indicator: 65,
+                    // NUEVOS CAMPOS
+                    indResultado: "Incremento del PIB sectorial al 4%",
+                    indProducto: "500km de carreteras rehabilitadas",
+                    criticalPath: "Aprobación de financiamiento externo",
                     tasks: [{name: "Reglamento Ley 342", ministry: "Min. Economía", progress: 100}],
                     milestones: [{date: "20 Ene", desc: "Firma Convenio"}]
                 }
@@ -28,13 +32,17 @@ const app = {
         const stored = localStorage.getItem('cengobData');
         this.data = stored ? JSON.parse(stored) : JSON.parse(JSON.stringify(this.defaultData));
         
-        // Normalización de datos para evitar errores
+        // Normalización: Aseguramos que existan los nuevos campos
         this.data.forEach(p => {
             if(!p.interventions) p.interventions = [];
             p.interventions.forEach(i => {
                 if(!i.tasks) i.tasks = [];
                 if(!i.milestones) i.milestones = [];
                 if(!i.indName) i.indName = "Indicador";
+                // Inicializar vacíos si no existen
+                if(!i.indResultado) i.indResultado = "";
+                if(!i.indProducto) i.indProducto = "";
+                if(!i.criticalPath) i.criticalPath = "";
             });
         });
 
@@ -54,7 +62,7 @@ const app = {
         document.getElementById(`pillar-${idx}`).classList.toggle('active');
     },
 
-    // --- RENDER DASHBOARD (VISTA SOLO LECTURA) ---
+    // --- RENDER DASHBOARD ---
     renderDashboard: function() {
         const container = document.getElementById('pillars-container');
         if(!container) return;
@@ -90,12 +98,20 @@ const app = {
                     <div class="intervention-card">
                         <div class="intervention-info">
                             <h4>${inter.name}</h4>
+                            
                             <div class="indicator-highlight">
                                 <span class="material-icons-round" style="font-size:1rem;">analytics</span>
                                 ${inter.indName}: <strong>${inter.indicator}%</strong>
                             </div>
+
                             <p>${inter.desc}</p>
                             
+                            <div style="background:#f8fafc; padding:10px; border-radius:6px; border:1px solid #e2e8f0; margin-bottom:15px; font-size:0.8rem;">
+                                <div style="margin-bottom:5px;"><strong>🎯 Ind. Resultado:</strong> <span style="color:#475569;">${inter.indResultado || '...'}</span></div>
+                                <div style="margin-bottom:5px;"><strong>📦 Ind. Producto:</strong> <span style="color:#475569;">${inter.indProducto || '...'}</span></div>
+                                <div><strong>⚠️ Ruta Crítica:</strong> <span style="color:#ef4444; font-weight:600;">${inter.criticalPath || '...'}</span></div>
+                            </div>
+
                             <div class="sub-section-title">Tareas Clave</div>
                             <div class="tasks-list">${tasksHtml || '<small>Sin tareas</small>'}</div>
 
@@ -143,7 +159,7 @@ const app = {
         document.getElementById('stat-milestones').innerText = totalMilestones;
     },
 
-    // --- RENDER GESTIÓN (EDITOR MEJORADO CON ETIQUETAS) ---
+    // --- RENDER GESTIÓN (EDITOR CON NUEVOS CAMPOS) ---
     renderGestion: function() {
         const container = document.getElementById('admin-container');
         if(!container) return;
@@ -156,20 +172,19 @@ const app = {
                 let tasksHtml = (inter.tasks || []).map((t, tIdx) => `
                     <div class="admin-task-row">
                         <input type="text" class="in-t-name" value="${t.name}" placeholder="Nombre de Tarea">
-                        <input type="text" class="in-t-min" value="${t.ministry}" placeholder="Responsable / Ministerio">
+                        <input type="text" class="in-t-min" value="${t.ministry}" placeholder="Responsable">
                         <button class="btn-del" onclick="app.delItem('task', ${pIdx}, ${iIdx}, ${tIdx})">×</button>
                     </div>
                 `).join('');
 
                 let msHtml = (inter.milestones || []).map((m, mIdx) => `
                     <div class="admin-ms-row">
-                        <input type="text" class="in-m-date input-min" value="${m.date}" placeholder="Fecha (ej: 20 Oct)">
-                        <input type="text" class="in-m-desc" value="${m.desc}" placeholder="Descripción del Hito">
+                        <input type="text" class="in-m-date input-min" value="${m.date}" placeholder="Fecha">
+                        <input type="text" class="in-m-desc" value="${m.desc}" placeholder="Hito">
                         <button class="btn-del" onclick="app.delItem('milestone', ${pIdx}, ${iIdx}, ${mIdx})">×</button>
                     </div>
                 `).join('');
 
-                // BLOQUE DE INTERVENCIÓN CON ETIQUETAS
                 interventionsHtml += `
                     <div class="admin-intervention-wrapper">
                         <div class="admin-intervention-header">
@@ -183,12 +198,13 @@ const app = {
                                     <input type="number" class="in-i-ind input-min" value="${inter.indicator}">
                                 </div>
                                 <div style="display:flex; align-items:flex-end;">
-                                    <button class="btn-del" onclick="app.delItem('intervention', ${pIdx}, ${iIdx})">Borrar</button>
+                                    <button class="btn-del" onclick="app.delItem('intervention', ${pIdx}, ${iIdx})">🗑️</button>
                                 </div>
                             </div>
+
                             <div class="admin-int-row-2">
                                 <div style="flex:2;">
-                                    <label class="lbl">Descripción detallada</label>
+                                    <label class="lbl">Descripción</label>
                                     <input type="text" class="in-i-desc" value="${inter.desc}">
                                 </div>
                                 <div style="flex:1;">
@@ -196,15 +212,32 @@ const app = {
                                     <input type="text" class="in-i-indname" value="${inter.indName}">
                                 </div>
                             </div>
+
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
+                                <div>
+                                    <label class="lbl" style="color:#059669;">Ind. Resultado</label>
+                                    <input type="text" class="in-i-res" value="${inter.indResultado || ''}" placeholder="Ej: Reducción del déficit...">
+                                </div>
+                                <div>
+                                    <label class="lbl" style="color:#2563eb;">Ind. Producto</label>
+                                    <input type="text" class="in-i-prod" value="${inter.indProducto || ''}" placeholder="Ej: 5 Hospitales entregados">
+                                </div>
+                            </div>
+
+                            <div style="margin-top:10px;">
+                                <label class="lbl" style="color:#dc2626;">Ruta Crítica</label>
+                                <input type="text" class="in-i-path" value="${inter.criticalPath || ''}" placeholder="Ej: Aprobación ALP, Desembolso...">
+                            </div>
+
                         </div>
                         
                         <div class="edit-list-group">
-                            <label class="lbl-small">Tareas y Responsables</label>
+                            <label class="lbl-small">Tareas</label>
                             ${tasksHtml}
                             <button class="btn-add-mini" onclick="app.addItem('task', ${pIdx}, ${iIdx})">+ Añadir Tarea</button>
                         </div>
                         <div class="edit-list-group" style="margin-top:10px;">
-                            <label class="lbl-small">Hitos y Fechas</label>
+                            <label class="lbl-small">Hitos</label>
                             ${msHtml}
                             <button class="btn-add-mini" onclick="app.addItem('milestone', ${pIdx}, ${iIdx})">+ Añadir Hito</button>
                         </div>
@@ -212,17 +245,16 @@ const app = {
                 `;
             });
 
-            // BLOQUE DE PILAR
             const div = document.createElement('div');
             div.className = 'admin-pilar-wrapper';
             div.innerHTML = `
                 <div class="admin-pilar-header">
                     <div style="flex:1;">
-                        <label class="lbl">Título del Pilar</label>
+                        <label class="lbl">Pilar</label>
                         <input type="text" class="in-p-title input-bold" value="${p.title}">
                     </div>
                     <div style="flex:2;">
-                        <label class="lbl">Descripción del Pilar</label>
+                        <label class="lbl">Descripción Pilar</label>
                         <input type="text" class="in-p-desc" value="${p.desc}">
                     </div>
                     <div style="display:flex; align-items:flex-end;">
@@ -230,13 +262,13 @@ const app = {
                     </div>
                 </div>
                 ${interventionsHtml}
-                <button class="btn-dashed" style="padding:10px; margin-top:10px;" onclick="app.addItem('intervention', ${pIdx})">+ Añadir Nueva Intervención</button>
+                <button class="btn-dashed" style="padding:10px; margin-top:10px;" onclick="app.addItem('intervention', ${pIdx})">+ Nueva Intervención</button>
             `;
             container.appendChild(div);
         });
     },
 
-    // --- COSECHA DATOS (SIN CAMBIOS) ---
+    // --- COSECHA DATOS (ACTUALIZADO) ---
     harvestData: function() {
         const container = document.getElementById('admin-container');
         if(!container || container.innerHTML === "") return;
@@ -248,7 +280,7 @@ const app = {
             let pObj = {
                 title: pWrap.querySelector('.in-p-title').value,
                 desc: pWrap.querySelector('.in-p-desc').value,
-                icon: 'flag', // Icono por defecto
+                icon: 'flag',
                 interventions: []
             };
 
@@ -259,6 +291,11 @@ const app = {
                     indName: iWrap.querySelector('.in-i-indname').value,
                     desc: iWrap.querySelector('.in-i-desc').value,
                     indicator: parseFloat(iWrap.querySelector('.in-i-ind').value) || 0,
+                    // CAPTURA DE NUEVOS CAMPOS
+                    indResultado: iWrap.querySelector('.in-i-res').value,
+                    indProducto: iWrap.querySelector('.in-i-prod').value,
+                    criticalPath: iWrap.querySelector('.in-i-path').value,
+                    
                     tasks: [],
                     milestones: []
                 };
@@ -284,24 +321,24 @@ const app = {
     },
 
     // --- ACCIONES CRUD ---
-    addPillar: function() { this.harvestData(); this.data.push({title:"Nuevo Pilar", desc:"Descripción corta", icon:"flag", interventions:[]}); this.renderGestion(); },
+    addPillar: function() { this.harvestData(); this.data.push({title:"Nuevo Pilar", desc:"...", icon:"flag", interventions:[]}); this.renderGestion(); },
     addItem: function(type, pIdx, iIdx) {
         this.harvestData();
-        if(type === 'intervention') this.data[pIdx].interventions.push({name:"Nueva Intervención", indName:"% Avance", desc:"", indicator:0, tasks:[], milestones:[]});
+        if(type === 'intervention') this.data[pIdx].interventions.push({name:"Nueva", indName:"% Avance", desc:"", indicator:0, indResultado:"", indProducto:"", criticalPath:"", tasks:[], milestones:[]});
         if(type === 'task') this.data[pIdx].interventions[iIdx].tasks.push({name:"", ministry:""});
         if(type === 'milestone') this.data[pIdx].interventions[iIdx].milestones.push({date:"", desc:""});
         this.renderGestion();
     },
     delItem: function(type, pIdx, iIdx, xIdx) {
         this.harvestData();
-        if(type === 'pillar' && confirm("¿Borrar todo el pilar?")) this.data.splice(pIdx, 1);
-        if(type === 'intervention' && confirm("¿Borrar intervención?")) this.data[pIdx].interventions.splice(iIdx, 1);
+        if(type === 'pillar' && confirm("¿Borrar Pilar?")) this.data.splice(pIdx, 1);
+        if(type === 'intervention' && confirm("¿Borrar Intervención?")) this.data[pIdx].interventions.splice(iIdx, 1);
         if(type === 'task') this.data[pIdx].interventions[iIdx].tasks.splice(xIdx, 1);
         if(type === 'milestone') this.data[pIdx].interventions[iIdx].milestones.splice(xIdx, 1);
         this.renderGestion();
     },
 
-    // --- GUARDAR Y SINCRONIZAR ---
+    // --- GUARDAR Y SYNC ---
     saveData: async function() {
         this.harvestData();
         localStorage.setItem('cengobData', JSON.stringify(this.data));
@@ -309,22 +346,15 @@ const app = {
         if(this.config.script_url) {
             document.getElementById('loader').classList.remove('hidden');
             try {
-                // Enviamos los datos con 'no-cors' para evitar errores simples de CORS en GAS
                 await fetch(this.config.script_url, {
-                    method: 'POST',
-                    mode: 'no-cors', 
+                    method: 'POST', mode: 'no-cors',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(this.data) // Enviamos el array directo
+                    body: JSON.stringify(this.data)
                 });
                 alert("✅ Sincronizado con Google Sheets");
-            } catch(e) { 
-                console.error(e);
-                alert("⚠️ Guardado localmente. Error al conectar con Nube."); 
-            }
+            } catch(e) { alert("⚠️ Guardado local (Error Nube)"); }
             document.getElementById('loader').classList.add('hidden');
-        } else {
-            alert("✅ Guardado localmente");
-        }
+        } else { alert("✅ Guardado local"); }
         this.toggleView('dashboard');
     },
 
@@ -332,13 +362,12 @@ const app = {
         try {
             const res = await fetch(this.config.script_url);
             const json = await res.json();
-            // El script de Google debe devolver la estructura { data: [...] } o directo el array
             if(json.data) {
                  this.data = json.data; 
                  this.renderDashboard();
                  localStorage.setItem('cengobData', JSON.stringify(this.data));
             }
-        } catch(e) { console.log("Modo Offline o Error de conexión"); }
+        } catch(e) { console.log("Offline"); }
     },
 
     toggleConfig: () => document.getElementById('configModal').classList.toggle('hidden'),
@@ -347,10 +376,10 @@ const app = {
         this.config.script_url = url;
         localStorage.setItem('cengob_url', url);
         document.getElementById('configModal').classList.add('hidden');
-        this.fetchFromCloud(); // Intenta bajar datos al configurar
+        this.fetchFromCloud();
     },
 
-    // --- GAUGE (GRÁFICOS) ---
+    // --- GAUGE ---
     createGauge: function(id, val, isMini) {
         const ctx = document.getElementById(id);
         if(!ctx) return;
