@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CENGOB | Sistema de Gestión</title>
+    <title>CENGOB | Gestión por Resultados</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
@@ -37,7 +37,7 @@
     <div id="configModal" class="modal hidden">
         <div class="modal-content config-box">
             <h3>Conexión Nube</h3>
-            <p class="subtitle">URL del Script Google (Web App)</p>
+            <p class="subtitle">URL del Script Google</p>
             <input type="text" id="url-script" placeholder="https://script.google.com/.../exec">
             <div style="display:flex; gap:10px; margin-top:15px;">
                 <button onclick="app.toggleConfig()" class="btn-secondary flex-1">Cerrar</button>
@@ -51,23 +51,24 @@
         <div id="view-dashboard">
             <div class="dashboard-header">
                 <div class="kpi-main-card">
-                    <div style="flex:1">
+                    <div>
                         <h1 style="margin:0; font-size:1.5rem; color:var(--primary);">Tablero de Control 2026</h1>
-                        <p style="margin:5px 0 15px 0; color:var(--text-light); font-size:0.9rem;">Seguimiento Estratégico Presidencial</p>
-                        <div class="stats-row">
-                            <div><span class="stat-label">Intervenciones</span><span class="stat-val" id="stat-int">0</span></div>
-                            <div><span class="stat-label">Hitos</span><span class="stat-val" id="stat-milestones">0</span></div>
-                        </div>
+                        <p style="margin:5px 0 0 0; color:var(--text-light); font-size:0.9rem;">Seguimiento de Intervenciones Estratégicas</p>
                     </div>
-                    <div class="gauge-wrapper">
-                        <canvas id="chartGlobal"></canvas>
-                        <div class="gauge-value" id="global-percent">0%</div>
-                        <div style="text-align:center; font-size:0.6rem; color:#aaa; margin-top:-5px;">CUMPLIMIENTO</div>
+                    <div class="stats-row">
+                        <div class="stat-box">
+                            <span class="stat-val" id="stat-int">0</span>
+                            <span class="stat-label">Intervenciones</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-val" id="stat-milestones">0</span>
+                            <span class="stat-label">Hitos Clave</span>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <h2 class="section-title">Pilares, Intervenciones e Hitos</h2>
+            <h2 class="section-title">Pilares, Indicadores e Intervenciones</h2>
             <div class="pillars-grid" id="pillars-container"></div>
         </div>
 
