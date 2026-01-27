@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CENGOB | Gestión por Resultados</title>
+    <title>S.I.G.E.P. | Tablero de Mando Presidencial</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
@@ -12,82 +12,84 @@
 <body>
 
     <div id="loader" class="loading-overlay hidden">
-        <span class="material-icons-round spin">sync</span>
-        <p>Procesando...</p>
+        <div class="spinner"></div>
+        <p>Sincronizando con Sala Situacional...</p>
     </div>
 
     <nav class="navbar">
         <div class="brand">
-            <span class="material-icons-round" style="color:var(--primary); font-size: 1.8rem;">account_balance</span>
-            <div style="display:flex; flex-direction:column; margin-left: 10px;">
-                <span style="font-weight:800; font-size:1rem;">S.I.G.E.P.</span>
-                <span style="font-size:0.7rem; font-weight:600; opacity:0.8;">CENGOB</span>
+            <div class="brand-logo">
+                <span class="material-icons-round">account_balance</span>
+            </div>
+            <div class="brand-text">
+                <span class="brand-title">PRESIDENCIA</span>
+                <span class="brand-subtitle">TABLERO DE CONTROL DE GESTIÓN</span>
             </div>
         </div>
+        
+        <div class="nav-kpis">
+            <div class="mini-kpi">
+                <span class="mk-label">Ejecución Global</span>
+                <span class="mk-val" id="kpi-global">0%</span>
+            </div>
+            <div class="vr"></div>
+            <div class="mini-kpi">
+                <span class="mk-label">Alertas Críticas</span>
+                <span class="mk-val danger" id="kpi-alerts">0</span>
+            </div>
+        </div>
+
         <div class="nav-actions">
+            <button class="icon-btn tooltip" onclick="app.toggleCarousel()" data-tooltip="Modo Presentación (TV)">
+                <span class="material-icons-round" id="icon-play">play_circle</span>
+            </button>
+            
             <button class="icon-btn" onclick="app.toggleConfig()">
                 <span class="material-icons-round">settings</span>
             </button>
             <button class="btn-primary-sm" onclick="app.toggleView('gestion')">
-                <span class="material-icons-round" style="margin-right:5px;">edit_note</span> Gestionar
+                <span class="material-icons-round">edit_note</span> Editor
             </button>
         </div>
     </nav>
 
     <div id="configModal" class="modal hidden">
-        <div class="modal-content config-box">
-            <h3>Conexión Nube</h3>
-            <p class="subtitle">URL del Script Google</p>
-            <input type="text" id="url-script" placeholder="https://script.google.com/.../exec">
-            <div style="display:flex; gap:10px; margin-top:15px;">
-                <button onclick="app.toggleConfig()" class="btn-secondary flex-1">Cerrar</button>
-                <button onclick="app.saveConfig()" class="btn-primary flex-1">Guardar</button>
+        <div class="modal-content">
+            <h3>Conexión Nube (Google Sheets)</h3>
+            <input type="text" id="url-script" placeholder="URL del Script...">
+            <div class="modal-footer">
+                <button onclick="app.toggleConfig()" class="btn-secondary">Cancelar</button>
+                <button onclick="app.saveConfig()" class="btn-primary">Guardar Conexión</button>
             </div>
         </div>
     </div>
 
-    <div class="container">
+    <div class="main-wrapper">
         
-        <div id="view-dashboard">
-            <div class="dashboard-header">
-                <div class="kpi-main-card">
-                    <div>
-                        <h1 style="margin:0; font-size:1.5rem; color:var(--primary);">Tablero de Control 2026</h1>
-                        <p style="margin:5px 0 0 0; color:var(--text-light); font-size:0.9rem;">Seguimiento de Intervenciones Estratégicas</p>
-                    </div>
-                    <div class="stats-row">
-                        <div class="stat-box">
-                            <span class="stat-val" id="stat-int">0</span>
-                            <span class="stat-label">Intervenciones</span>
-                        </div>
-                        <div class="stat-box">
-                            <span class="stat-val" id="stat-milestones">0</span>
-                            <span class="stat-label">Hitos Clave</span>
-                        </div>
-                    </div>
-                </div>
+        <div id="view-dashboard" class="view-section">
+            
+            <div id="carousel-status-bar" class="hidden">
+                <div class="carousel-progress"><div class="progress-bar" id="carousel-bar"></div></div>
+                <span class="carousel-label">MODO PRESENTACIÓN ACTIVO</span>
             </div>
 
-            <h2 class="section-title">Pilares, Indicadores e Intervenciones</h2>
-            <div class="pillars-grid" id="pillars-container"></div>
+            <div class="dashboard-grid" id="pillars-container">
+                </div>
         </div>
 
-        <div id="view-gestion" class="hidden">
-            <div class="gestion-header-sticky">
-                <div class="container-narrow" style="display:flex; justify-content:space-between; align-items:center;">
-                    <h2 style="margin:0; color:var(--primary);">Editor de Estructura</h2>
-                    <div style="display:flex; gap:10px;">
-                        <button class="btn-secondary" onclick="app.toggleView('dashboard')">Cancelar</button>
-                        <button class="btn-primary-sm" onclick="app.saveData()">
-                            <span class="material-icons-round" style="margin-right:5px;">save</span> Guardar Todo
-                        </button>
-                    </div>
+        <div id="view-gestion" class="view-section hidden">
+            <div class="editor-header">
+                <h2>Editor de Estrategia</h2>
+                <div class="editor-actions">
+                    <button class="btn-secondary" onclick="app.toggleView('dashboard')">Volver al Tablero</button>
+                    <button class="btn-primary" onclick="app.saveData()">
+                        <span class="material-icons-round">cloud_upload</span> Guardar Cambios
+                    </button>
                 </div>
             </div>
-            
             <div class="container-narrow">
-                <div id="admin-container" class="admin-list-container"></div>
-                <button class="btn-dashed full-width mt-20" onclick="app.addPillar()">+ Añadir Nuevo Pilar</button>
+                <div id="admin-container" class="admin-list"></div>
+                <button class="btn-dashed-lg" onclick="app.addPillar()">+ Agregar Nuevo Pilar Estratégico</button>
             </div>
         </div>
 
