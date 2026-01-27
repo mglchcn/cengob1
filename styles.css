@@ -117,3 +117,7 @@ input { padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; font-family
     .gauge-pillar-wrapper { display: none; }
     .intervention-card { grid-template-columns: 1fr; }
 }
+
+/* Añadir al final de styles.css */
+.lbl { display: block; font-size: 0.75rem; font-weight: 700; color: #64748b; margin-bottom: 4px; text-transform: uppercase; }
+.lbl-small { display: block; font-size: 0.7rem; font-weight: 600; color: #94a3b8; margin-bottom: 5px; border-bottom: 1px dashed #e2e8f0; padding-bottom: 2px; }
