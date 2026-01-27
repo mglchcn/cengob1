@@ -1,33 +1,40 @@
 const app = {
-    [cite_start]//  [cite: 16-25] DATOS BASE
+    // DATOS DE EJEMPLO (ESTRUCTURA COMPLETA)
     defaultData: [
         {
             title: "Economía para todos",
-            desc: "Estabilidad y crecimiento.",
+            desc: "Fomento del 'capitalismo para todos'.",
             icon: "paid",
             interventions: [
                 {
                     name: "Shock de Inversión",
-                    desc: "Reactivación obras públicas.",
-                    indicator: 65, // Aguja
+                    desc: "Reactivación de obras paralizadas.",
+                    indicator: 65, // % de avance del indicador
                     tasks: [
-                        {name: "10 Acciones Cortas", ministry: "Min. Economía", progress: 80},
-                        {name: "Créditos SiBolivia", ministry: "MDPyEP", progress: 40}
+                        {name: "Reglamento Ley 342", ministry: "Min. Economía", progress: 100},
+                        {name: "Fideicomiso PyME", ministry: "MDPyEP", progress: 40}
+                    ],
+                    milestones: [
+                        {date: "20 Ene", desc: "Firma Convenio"},
+                        {date: "15 Feb", desc: "Primer Desembolso"}
                     ]
                 }
             ]
         },
         {
             title: "Bolivia 50/50",
-            desc: "Nuevo pacto fiscal.",
+            desc: "Nuevo pacto fiscal y autonomías.",
             icon: "balance",
             interventions: [
                 {
                     name: "Diálogo Nacional",
-                    desc: "Mesas técnicas departamentales.",
-                    indicator: 20,
+                    desc: "Mesas técnicas con Gobernaciones.",
+                    indicator: 25,
                     tasks: [
-                        {name: "Propuesta Técnica", ministry: "Autonomías", progress: 20}
+                        {name: "Cronograma de visitas", ministry: "Vicemin. Autonomías", progress: 80}
+                    ],
+                    milestones: [
+                        {date: "30 Ene", desc: "Instalación Mesa 1"}
                     ]
                 }
             ]
@@ -44,13 +51,36 @@ const app = {
         const stored = localStorage.getItem('cengobData');
         this.data = stored ? JSON.parse(stored) : JSON.parse(JSON.stringify(this.defaultData));
         
-        // Corrección Estructural (Migración)
+        // Normalización de datos (Evitar errores si faltan arrays)
         this.data.forEach(p => {
             if(!p.interventions) p.interventions = [];
+            p.interventions.forEach(i => {
+                if(!i.tasks) i.tasks = [];
+                if(!i.milestones) i.milestones = [];
+            });
         });
 
         this.renderDashboard();
         if(this.config.script_url) this.fetchFromCloud();
+    },
+
+    // --- VISTAS ---
+    toggleView: function(view) {
+        const dash = document.getElementById('view-dashboard');
+        const gest = document.getElementById('view-gestion');
+        if(view === 'gestion') {
+            dash.classList.add('hidden');
+            gest.classList.remove('hidden');
+            this.renderGestion();
+        } else {
+            gest.classList.add('hidden');
+            dash.classList.remove('hidden');
+            this.renderDashboard();
+        }
+    },
+
+    toggleAccordion: function(idx) {
+        document.getElementById(`pillar-${idx}`).classList.toggle('active');
     },
 
     // --- RENDER DASHBOARD ---
@@ -61,22 +91,32 @@ const app = {
         this.charts.forEach(c => c.destroy());
         this.charts = [];
 
-        let totalInter = 0, totalTasks = 0;
+        let totalInter = 0, totalTasks = 0, totalMilestones = 0;
+        let weightedSum = 0;
 
         this.data.forEach((p, pIdx) => {
             let interventionsHtml = '';
             
             p.interventions.forEach((inter, iIdx) => {
                 totalInter++;
+                weightedSum += parseFloat(inter.indicator) || 0;
                 totalTasks += (inter.tasks||[]).length;
+                totalMilestones += (inter.milestones||[]).length;
 
+                // Tareas
                 const tasksHtml = (inter.tasks||[]).map(t => `
                     <div class="task-row">
-                        <div>
-                            <span class="t-name">${t.name}</span>
-                            <span class="t-badge">${t.ministry}</span>
-                        </div>
-                        <span class="t-val ${t.progress<50?'red':'green'}">${t.progress}%</span>
+                        <span>${t.name} <span class="t-badge">${t.ministry}</span></span>
+                        <span class="t-val ${t.progress>=100?'green':(t.progress<50?'red':'')}">${t.progress}%</span>
+                    </div>
+                `).join('');
+
+                // Hitos
+                const msHtml = (inter.milestones||[]).map(m => `
+                    <div class="milestone-row">
+                        <span class="material-icons-round" style="font-size:1rem; color:var(--success);">check_circle_outline</span>
+                        <span class="ms-date">${m.date}</span>
+                        <span class="ms-desc">${m.desc}</span>
                     </div>
                 `).join('');
 
@@ -85,17 +125,23 @@ const app = {
                         <div class="intervention-info">
                             <h4>${inter.name}</h4>
                             <p>${inter.desc}</p>
-                            <div class="tasks-list">${tasksHtml || '<small style="color:#aaa">Sin tareas</small>'}</div>
+                            
+                            <div class="sub-section-title">Tareas</div>
+                            <div class="tasks-list">${tasksHtml || '<small>Sin tareas</small>'}</div>
+
+                            <div class="sub-section-title" style="margin-top:15px;">Hitos</div>
+                            <div class="milestones-list">${msHtml || '<small>Sin hitos</small>'}</div>
                         </div>
                         <div class="gauge-mini-wrapper">
                             <canvas id="gauge-p${pIdx}-i${iIdx}"></canvas>
                             <div class="gauge-mini-val">${inter.indicator}%</div>
-                            <div class="gauge-label">INDICADOR</div>
+                            <div class="gauge-label">AVANCE</div>
                         </div>
                     </div>
                 `;
             });
 
+            // Tarjeta Pilar
             const card = document.createElement('div');
             card.className = 'pillar-card';
             card.id = `pillar-${pIdx}`;
@@ -103,42 +149,30 @@ const app = {
                 <div class="pillar-header" onclick="app.toggleAccordion(${pIdx})">
                     <div class="icon-box"><span class="material-icons-round">${p.icon}</span></div>
                     <div style="flex:1;">
-                        <h3 style="margin:0 0 5px 0; font-size:1.1rem; color:var(--primary);">${p.title}</h3>
+                        <h3 style="margin:0; font-size:1.1rem; color:var(--primary);">${p.title}</h3>
                         <p style="margin:0; font-size:0.85rem; color:var(--text-light);">${p.desc}</p>
                     </div>
                     <span class="material-icons-round accordion-icon">expand_more</span>
                 </div>
                 <div class="interventions-container">
-                    ${interventionsHtml || '<div style="padding:20px; text-align:center; color:#aaa;">Sin intervenciones definidas</div>'}
+                    ${interventionsHtml || '<div style="padding:20px;text-align:center;">Sin intervenciones</div>'}
                 </div>
             `;
             container.appendChild(card);
 
             // Crear Gauges
-            p.interventions.forEach((inter, iIdx) => {
-                this.createGauge(`gauge-p${pIdx}-i${iIdx}`, inter.indicator);
-            });
+            p.interventions.forEach((inter, iIdx) => this.createGauge(`gauge-p${pIdx}-i${iIdx}`, inter.indicator, true));
         });
 
-        // Stats globales
+        // Global Stats
+        const globalAvg = totalInter ? Math.round(weightedSum / totalInter) : 0;
         document.getElementById('stat-int').innerText = totalInter;
-        document.getElementById('stat-task').innerText = totalTasks;
-        
-        // Calculo Global (Promedio de indicadores de intervención)
-        let globalSum = 0;
-        let globalCount = 0;
-        this.data.forEach(p => p.interventions.forEach(i => { globalSum += (parseFloat(i.indicator)||0); globalCount++; }));
-        const globalAvg = globalCount ? Math.round(globalSum/globalCount) : 0;
-        
+        document.getElementById('stat-milestones').innerText = totalMilestones;
         document.getElementById('global-percent').innerText = globalAvg + '%';
         this.createGauge('chartGlobal', globalAvg, false);
     },
 
-    toggleAccordion: function(idx) {
-        document.getElementById(`pillar-${idx}`).classList.toggle('active');
-    },
-
-    // --- RENDER GESTIÓN (EDITOR ROBUSTO) ---
+    // --- RENDER GESTIÓN (EDITOR COMPLETO) ---
     renderGestion: function() {
         const container = document.getElementById('admin-container');
         if(!container) return;
@@ -148,59 +182,78 @@ const app = {
             let interventionsHtml = '';
 
             p.interventions.forEach((inter, iIdx) => {
-                let tasksHtml = '';
-                (inter.tasks || []).forEach((t, tIdx) => {
-                    tasksHtml += `
-                        <div class="admin-task-row">
-                            <span class="material-icons-round" style="font-size:1rem; color:#cbd5e1;">subdirectory_arrow_right</span>
-                            <input type="text" class="in-t-name" value="${t.name}" placeholder="Tarea">
-                            <input type="text" class="in-t-min" value="${t.ministry}" placeholder="Ministerio">
-                            <input type="number" class="in-t-prog" value="${t.progress}" placeholder="%">
-                            <button class="btn-del" onclick="app.delTask(${pIdx}, ${iIdx}, ${tIdx})">×</button>
-                        </div>
-                    `;
-                });
+                // Editor de Tareas
+                let tasksHtml = (inter.tasks || []).map((t, tIdx) => `
+                    <div class="admin-task-row">
+                        <span class="material-icons-round" style="font-size:1rem; color:#ccc;">task</span>
+                        <input type="text" class="in-t-name" value="${t.name}" placeholder="Tarea">
+                        <input type="text" class="in-t-min" value="${t.ministry}" placeholder="Ministerio">
+                        <input type="number" class="in-t-prog input-min-width" value="${t.progress}" placeholder="%">
+                        <button class="btn-del" onclick="app.delItem('task', ${pIdx}, ${iIdx}, ${tIdx})">×</button>
+                    </div>
+                `).join('');
+
+                // Editor de Hitos
+                let msHtml = (inter.milestones || []).map((m, mIdx) => `
+                    <div class="admin-ms-row">
+                        <span class="material-icons-round" style="font-size:1rem; color:#ccc;">flag</span>
+                        <input type="text" class="in-m-date input-min-width" value="${m.date}" placeholder="Fecha">
+                        <input type="text" class="in-m-desc" value="${m.desc}" placeholder="Descripción Hito">
+                        <button class="btn-del" onclick="app.delItem('milestone', ${pIdx}, ${iIdx}, ${mIdx})">×</button>
+                    </div>
+                `).join('');
 
                 interventionsHtml += `
                     <div class="admin-intervention-wrapper">
                         <div class="admin-intervention-header">
                             <input type="text" class="in-i-name input-bold" value="${inter.name}" placeholder="Nombre Intervención">
-                            <input type="text" class="in-i-desc" value="${inter.desc}" placeholder="Descripción corta">
-                            <input type="number" class="in-i-ind input-ind" value="${inter.indicator}" placeholder="%" title="Indicador Aguja">
-                            <button class="btn-del" onclick="app.delIntervention(${pIdx}, ${iIdx})">🗑️</button>
+                            <input type="text" class="in-i-desc" value="${inter.desc}" placeholder="Desc. Intervención">
+                            <input type="number" class="in-i-ind input-min-width" value="${inter.indicator}" placeholder="% Ind">
+                            <button class="btn-del" onclick="app.delItem('intervention', ${pIdx}, ${iIdx})">🗑️</button>
                         </div>
-                        <div>${tasksHtml}</div>
-                        <button class="btn-add-task" onclick="app.addTask(${pIdx}, ${iIdx})">+ Añadir Tarea</button>
+                        
+                        <div class="edit-list-group">
+                            <div style="font-size:0.7rem; font-weight:700; color:#94a3b8;">TAREAS</div>
+                            ${tasksHtml}
+                            <button class="btn-add-mini" onclick="app.addItem('task', ${pIdx}, ${iIdx})">+ Añadir Tarea</button>
+                        </div>
+
+                        <div class="edit-list-group" style="margin-top:10px;">
+                            <div style="font-size:0.7rem; font-weight:700; color:#94a3b8;">HITOS</div>
+                            ${msHtml}
+                            <button class="btn-add-mini" onclick="app.addItem('milestone', ${pIdx}, ${iIdx})">+ Añadir Hito</button>
+                        </div>
                     </div>
                 `;
             });
 
+            // Bloque Pilar
             const div = document.createElement('div');
             div.className = 'admin-pilar-wrapper';
             div.innerHTML = `
                 <div class="admin-pilar-header">
-                    <div class="icon-box" style="width:36px; height:36px;"><span class="material-icons-round">${p.icon}</span></div>
-                    <input type="text" class="in-p-title input-bold" value="${p.title}" style="font-size:1rem;">
-                    <input type="text" class="in-p-desc" value="${p.desc}">
-                    <input type="text" class="in-p-icon" value="${p.icon}" style="width:60px;" placeholder="Icono">
-                    <button class="btn-del" style="background:#fee2e2; border-color:#fecaca; color:#b91c1c;" onclick="app.delPillar(${pIdx})">Borrar Pilar</button>
+                    <span class="material-icons-round" style="color:var(--primary);">${p.icon}</span>
+                    <input type="text" class="in-p-title input-bold" value="${p.title}" placeholder="Título Pilar">
+                    <input type="text" class="in-p-desc" value="${p.desc}" placeholder="Descripción Pilar">
+                    <input type="text" class="in-p-icon input-min-width" value="${p.icon}" placeholder="Icono">
+                    <button class="btn-del" onclick="app.delItem('pillar', ${pIdx})">×</button>
                 </div>
                 ${interventionsHtml}
-                <button class="btn-add-inter" onclick="app.addIntervention(${pIdx})">+ Nueva Intervención</button>
+                <button class="btn-dashed" style="padding:10px; margin-top:10px;" onclick="app.addItem('intervention', ${pIdx})">+ Nueva Intervención</button>
             `;
             container.appendChild(div);
         });
     },
 
-    // --- COSECHA DE DATOS (CRÍTICO: LEE EL DOM EXACTAMENTE) ---
+    // --- HARVESTING (LECTURA DEL DOM) ---
     harvestData: function() {
         const container = document.getElementById('admin-container');
         if(!container || container.innerHTML === "") return;
 
-        const pilarWrappers = container.getElementsByClassName('admin-pilar-wrapper');
+        const pWrappers = container.getElementsByClassName('admin-pilar-wrapper');
         let newData = [];
 
-        Array.from(pilarWrappers).forEach(pWrap => {
+        Array.from(pWrappers).forEach(pWrap => {
             let pObj = {
                 title: pWrap.querySelector('.in-p-title').value,
                 desc: pWrap.querySelector('.in-p-desc').value,
@@ -208,23 +261,31 @@ const app = {
                 interventions: []
             };
 
-            const interWrappers = pWrap.getElementsByClassName('admin-intervention-wrapper');
-            Array.from(interWrappers).forEach(iWrap => {
+            const iWrappers = pWrap.getElementsByClassName('admin-intervention-wrapper');
+            Array.from(iWrappers).forEach(iWrap => {
                 let iObj = {
                     name: iWrap.querySelector('.in-i-name').value,
                     desc: iWrap.querySelector('.in-i-desc').value,
                     indicator: parseFloat(iWrap.querySelector('.in-i-ind').value) || 0,
-                    tasks: []
+                    tasks: [],
+                    milestones: []
                 };
 
-                const taskRows = iWrap.getElementsByClassName('admin-task-row');
-                Array.from(taskRows).forEach(tRow => {
-                    iObj.tasks.push({
-                        name: tRow.querySelector('.in-t-name').value,
-                        ministry: tRow.querySelector('.in-t-min').value,
-                        progress: parseFloat(tRow.querySelector('.in-t-prog').value) || 0
-                    });
-                });
+                // Tareas
+                const tRows = iWrap.querySelectorAll('.admin-task-row');
+                tRows.forEach(r => iObj.tasks.push({
+                    name: r.querySelector('.in-t-name').value,
+                    ministry: r.querySelector('.in-t-min').value,
+                    progress: parseFloat(r.querySelector('.in-t-prog').value) || 0
+                }));
+
+                // Hitos
+                const mRows = iWrap.querySelectorAll('.admin-ms-row');
+                mRows.forEach(r => iObj.milestones.push({
+                    date: r.querySelector('.in-m-date').value,
+                    desc: r.querySelector('.in-m-desc').value
+                }));
+
                 pObj.interventions.push(iObj);
             });
             newData.push(pObj);
@@ -233,14 +294,24 @@ const app = {
     },
 
     // --- ACCIONES CRUD ---
-    addPillar: function() { this.harvestData(); this.data.push({title:"Nuevo Eje", desc:"...", icon:"flag", interventions:[]}); this.renderGestion(); },
-    delPillar: function(ix) { if(confirm("¿Eliminar Pilar?")) { this.harvestData(); this.data.splice(ix,1); this.renderGestion(); } },
+    addPillar: function() { this.harvestData(); this.data.push({title:"Nuevo Pilar", desc:"...", icon:"flag", interventions:[]}); this.renderGestion(); },
     
-    addIntervention: function(pix) { this.harvestData(); this.data[pix].interventions.push({name:"Nueva Intervención", desc:"...", indicator:0, tasks:[]}); this.renderGestion(); },
-    delIntervention: function(pix, iix) { this.harvestData(); this.data[pix].interventions.splice(iix,1); this.renderGestion(); },
+    addItem: function(type, pIdx, iIdx) {
+        this.harvestData();
+        if(type === 'intervention') this.data[pIdx].interventions.push({name:"Nueva Intervención", desc:"", indicator:0, tasks:[], milestones:[]});
+        if(type === 'task') this.data[pIdx].interventions[iIdx].tasks.push({name:"", ministry:"", progress:0});
+        if(type === 'milestone') this.data[pIdx].interventions[iIdx].milestones.push({date:"", desc:""});
+        this.renderGestion();
+    },
 
-    addTask: function(pix, iix) { this.harvestData(); this.data[pix].interventions[iix].tasks.push({name:"", ministry:"", progress:0}); this.renderGestion(); },
-    delTask: function(pix, iix, tix) { this.harvestData(); this.data[pix].interventions[iix].tasks.splice(tix,1); this.renderGestion(); },
+    delItem: function(type, pIdx, iIdx, xIdx) {
+        this.harvestData();
+        if(type === 'pillar' && confirm("¿Borrar Pilar?")) this.data.splice(pIdx, 1);
+        if(type === 'intervention' && confirm("¿Borrar Intervención?")) this.data[pIdx].interventions.splice(iIdx, 1);
+        if(type === 'task') this.data[pIdx].interventions[iIdx].tasks.splice(xIdx, 1);
+        if(type === 'milestone') this.data[pIdx].interventions[iIdx].milestones.splice(xIdx, 1);
+        this.renderGestion();
+    },
 
     // --- GUARDADO ---
     saveData: async function() {
@@ -255,11 +326,11 @@ const app = {
                     headers: {'Content-Type': 'text/plain'},
                     body: JSON.stringify({ cengob: this.data })
                 });
-                alert("✅ Guardado Nube y Local");
-            } catch(e) { console.error(e); alert("⚠️ Guardado Local (Fallo Nube)"); }
+                alert("✅ Guardado en Nube y Local");
+            } catch(e) { console.error(e); alert("⚠️ Guardado solo local"); }
             document.getElementById('loader').classList.add('hidden');
         } else {
-            alert("✅ Guardado Local");
+            alert("✅ Guardado local");
         }
         this.toggleView('dashboard');
     },
@@ -273,12 +344,6 @@ const app = {
     },
 
     // --- UTILS ---
-    toggleView: function(v) {
-        const d = document.getElementById('view-dashboard');
-        const g = document.getElementById('view-gestion');
-        if(v==='gestion') { d.classList.add('hidden'); g.classList.remove('hidden'); this.renderGestion(); }
-        else { g.classList.add('hidden'); d.classList.remove('hidden'); this.renderDashboard(); }
-    },
     toggleConfig: () => document.getElementById('configModal').classList.toggle('hidden'),
     saveConfig: function() {
         const url = document.getElementById('url-script').value;
@@ -288,13 +353,13 @@ const app = {
         this.fetchFromCloud();
     },
 
-    // --- CHART.JS ---
+    // --- GRAFICOS ---
     createGauge: function(id, val, isMini) {
         const ctx = document.getElementById(id);
         if(!ctx) return;
         this.charts.push(new Chart(ctx, {
             type: 'doughnut',
-            data: { datasets: [{ data: [val, 100-val], backgroundColor: [this.getColor(val), '#e2e8f0'], borderWidth:0, cutout: isMini?'70%':'85%', circumference:180, rotation:270 }] },
+            data: { datasets: [{ data: [val, 100-val], backgroundColor: [this.getColor(val), '#e2e8f0'], borderWidth:0, cutout: isMini?'75%':'85%', circumference:180, rotation:270 }] },
             options: { responsive:true, maintainAspectRatio:false, plugins:{tooltip:{enabled:false}} }
         }));
     },
