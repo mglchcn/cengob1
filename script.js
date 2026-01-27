@@ -1,80 +1,33 @@
 const app = {
-    // --- DATOS INICIALES (3 NIVELES) ---
-    [cite_start]//  [cite: 16-25] Datos del CENGOB1.pptx reestructurados
+    [cite_start]//  [cite: 16-25] DATOS BASE
     defaultData: [
         {
             title: "Economía para todos",
-            desc: "Fomento del 'capitalismo para todos' y estabilidad.",
+            desc: "Estabilidad y crecimiento.",
             icon: "paid",
             interventions: [
                 {
-                    name: "Shock de Inversión Pública",
-                    desc: "Reactivación inmediata de obras.",
-                    indicator: 60, // Valor de la aguja de esta intervención
+                    name: "Shock de Inversión",
+                    desc: "Reactivación obras públicas.",
+                    indicator: 65, // Aguja
                     tasks: [
-                        {name: "10 Acciones Corto Plazo", ministry: "Min. Economía", progress: 80},
-                        {name: "Créditos SiBolivia 2.0", ministry: "MDPyEP", progress: 40}
+                        {name: "10 Acciones Cortas", ministry: "Min. Economía", progress: 80},
+                        {name: "Créditos SiBolivia", ministry: "MDPyEP", progress: 40}
                     ]
                 }
             ]
         },
         {
             title: "Bolivia 50/50",
-            desc: "Nuevo modelo de administración de autonomías.",
+            desc: "Nuevo pacto fiscal.",
             icon: "balance",
             interventions: [
                 {
-                    name: "Pacto Fiscal",
-                    desc: "Mesa de diálogo nacional.",
+                    name: "Diálogo Nacional",
+                    desc: "Mesas técnicas departamentales.",
                     indicator: 20,
                     tasks: [
-                        {name: "Propuesta Técnica", ministry: "Vicemin. Autonomías", progress: 20}
-                    ]
-                }
-            ]
-        },
-        {
-            title: "Bolivia Global",
-            desc: "Apertura económica y diversificación.",
-            icon: "public",
-            interventions: [
-                {
-                    name: "Atracción de Capitales",
-                    desc: "Mejora del clima de inversión.",
-                    indicator: 5,
-                    tasks: [
-                        {name: "Rueda de Negocios", ministry: "Cancillería", progress: 5}
-                    ]
-                }
-            ]
-        },
-        {
-            title: "Fin 'Estado-tranca'",
-            desc: "Modernización y digitalización.",
-            icon: "rocket_launch",
-            interventions: [
-                {
-                    name: "Gobierno Electrónico",
-                    desc: "Cero filas y cero papel.",
-                    indicator: 25,
-                    tasks: [
-                        {name: "Ventanilla Única", ministry: "AGETIC", progress: 30},
-                        {name: "Trámites Digitales", ministry: "Min. Presidencia", progress: 20}
-                    ]
-                }
-            ]
-        },
-        {
-            title: "Bolivia Sustentable",
-            desc: "Cuidado ambiental y Litio.",
-            icon: "forest",
-            interventions: [
-                {
-                    name: "Industrialización Litio",
-                    desc: "Aceleración de plantas.",
-                    indicator: 55,
-                    tasks: [
-                        {name: "Plan Litio 2026", ministry: "YLB", progress: 55}
+                        {name: "Propuesta Técnica", ministry: "Autonomías", progress: 20}
                     ]
                 }
             ]
@@ -83,57 +36,41 @@ const app = {
 
     data: [], 
     config: { script_url: localStorage.getItem('cengob_url') || '' },
-    charts: [], // Para almacenar instancias y destruirlas
+    charts: [],
 
     init: function() {
         if(document.getElementById('url-script')) document.getElementById('url-script').value = this.config.script_url;
         
         const stored = localStorage.getItem('cengobData');
         this.data = stored ? JSON.parse(stored) : JSON.parse(JSON.stringify(this.defaultData));
-
-        // Migración de datos viejos (si el usuario tenía estructura antigua)
-        // Esto evita errores si ya guardaste datos con la versión anterior
+        
+        // Corrección Estructural (Migración)
         this.data.forEach(p => {
-            if(!p.interventions) {
-                p.interventions = [{
-                    name: "Intervención General", 
-                    desc: "Acciones consolidadas", 
-                    indicator: 0, 
-                    tasks: p.subtasks || []
-                }];
-                delete p.subtasks; // Limpiar estructura vieja
-            }
+            if(!p.interventions) p.interventions = [];
         });
 
         this.renderDashboard();
         if(this.config.script_url) this.fetchFromCloud();
     },
 
-    // --- RENDER DASHBOARD (NUEVA ESTRUCTURA) ---
+    // --- RENDER DASHBOARD ---
     renderDashboard: function() {
         const container = document.getElementById('pillars-container');
         if(!container) return;
         container.innerHTML = '';
-        
-        // Limpiar gráficos
         this.charts.forEach(c => c.destroy());
         this.charts = [];
 
-        let totalInterventions = 0;
-        let totalTasks = 0;
-        let weightedSum = 0;
+        let totalInter = 0, totalTasks = 0;
 
         this.data.forEach((p, pIdx) => {
-            // Renderizar Intervenciones (Nivel 2)
             let interventionsHtml = '';
             
             p.interventions.forEach((inter, iIdx) => {
-                totalInterventions++;
-                weightedSum += parseFloat(inter.indicator) || 0;
-                totalTasks += (inter.tasks || []).length;
+                totalInter++;
+                totalTasks += (inter.tasks||[]).length;
 
-                // Renderizar Tareas (Nivel 3)
-                const tasksHtml = (inter.tasks || []).map(t => `
+                const tasksHtml = (inter.tasks||[]).map(t => `
                     <div class="task-row">
                         <div>
                             <span class="t-name">${t.name}</span>
@@ -148,20 +85,17 @@ const app = {
                         <div class="intervention-info">
                             <h4>${inter.name}</h4>
                             <p>${inter.desc}</p>
-                            <div class="tasks-list">
-                                ${tasksHtml || '<small style="color:#aaa">Sin tareas</small>'}
-                            </div>
+                            <div class="tasks-list">${tasksHtml || '<small style="color:#aaa">Sin tareas</small>'}</div>
                         </div>
                         <div class="gauge-mini-wrapper">
                             <canvas id="gauge-p${pIdx}-i${iIdx}"></canvas>
                             <div class="gauge-mini-val">${inter.indicator}%</div>
-                            <div class="gauge-label">Indicador</div>
+                            <div class="gauge-label">INDICADOR</div>
                         </div>
                     </div>
                 `;
             });
 
-            // Tarjeta Pilar (Acordeón)
             const card = document.createElement('div');
             card.className = 'pillar-card';
             card.id = `pillar-${pIdx}`;
@@ -169,27 +103,33 @@ const app = {
                 <div class="pillar-header" onclick="app.toggleAccordion(${pIdx})">
                     <div class="icon-box"><span class="material-icons-round">${p.icon}</span></div>
                     <div style="flex:1;">
-                        <h3 style="margin:0; font-size:1.1rem; color:var(--primary);">${p.title}</h3>
+                        <h3 style="margin:0 0 5px 0; font-size:1.1rem; color:var(--primary);">${p.title}</h3>
                         <p style="margin:0; font-size:0.85rem; color:var(--text-light);">${p.desc}</p>
                     </div>
                     <span class="material-icons-round accordion-icon">expand_more</span>
                 </div>
                 <div class="interventions-container">
-                    ${interventionsHtml}
+                    ${interventionsHtml || '<div style="padding:20px; text-align:center; color:#aaa;">Sin intervenciones definidas</div>'}
                 </div>
             `;
             container.appendChild(card);
 
-            // Crear Gauges para cada intervención de este pilar
+            // Crear Gauges
             p.interventions.forEach((inter, iIdx) => {
-                this.createGauge(`gauge-p${pIdx}-i${iIdx}`, inter.indicator, true);
+                this.createGauge(`gauge-p${pIdx}-i${iIdx}`, inter.indicator);
             });
         });
 
-        // Global Stats
-        const globalAvg = totalInterventions ? Math.round(weightedSum / totalInterventions) : 0;
-        document.getElementById('stat-interventions').innerText = totalInterventions;
-        document.getElementById('stat-tasks').innerText = totalTasks;
+        // Stats globales
+        document.getElementById('stat-int').innerText = totalInter;
+        document.getElementById('stat-task').innerText = totalTasks;
+        
+        // Calculo Global (Promedio de indicadores de intervención)
+        let globalSum = 0;
+        let globalCount = 0;
+        this.data.forEach(p => p.interventions.forEach(i => { globalSum += (parseFloat(i.indicator)||0); globalCount++; }));
+        const globalAvg = globalCount ? Math.round(globalSum/globalCount) : 0;
+        
         document.getElementById('global-percent').innerText = globalAvg + '%';
         this.createGauge('chartGlobal', globalAvg, false);
     },
@@ -198,7 +138,7 @@ const app = {
         document.getElementById(`pillar-${idx}`).classList.toggle('active');
     },
 
-    // --- RENDER GESTIÓN (FORMULARIO 3 NIVELES) ---
+    // --- RENDER GESTIÓN (EDITOR ROBUSTO) ---
     renderGestion: function() {
         const container = document.getElementById('admin-container');
         if(!container) return;
@@ -211,81 +151,78 @@ const app = {
                 let tasksHtml = '';
                 (inter.tasks || []).forEach((t, tIdx) => {
                     tasksHtml += `
-                        <div class="task-edit">
-                            <span class="material-icons-round" style="font-size:1rem; color:#ccc;">subdirectory_arrow_right</span>
-                            <input type="text" class="in-task-name" value="${t.name}" placeholder="Tarea">
-                            <input type="text" class="in-task-min" value="${t.ministry}" placeholder="Ministerio" style="width:100px;">
-                            <input type="number" class="in-task-prog" value="${t.progress}" placeholder="%" style="width:60px;">
+                        <div class="admin-task-row">
+                            <span class="material-icons-round" style="font-size:1rem; color:#cbd5e1;">subdirectory_arrow_right</span>
+                            <input type="text" class="in-t-name" value="${t.name}" placeholder="Tarea">
+                            <input type="text" class="in-t-min" value="${t.ministry}" placeholder="Ministerio">
+                            <input type="number" class="in-t-prog" value="${t.progress}" placeholder="%">
                             <button class="btn-del" onclick="app.delTask(${pIdx}, ${iIdx}, ${tIdx})">×</button>
                         </div>
                     `;
                 });
 
                 interventionsHtml += `
-                    <div class="admin-intervention">
-                        <div style="display:flex; gap:10px; margin-bottom:5px;">
-                            <input type="text" class="in-inter-title" value="${inter.name}" placeholder="Nombre Intervención">
-                            <input type="number" class="in-inter-ind" value="${inter.indicator}" placeholder="Ind %" style="width:70px;" title="Indicador Aguja">
+                    <div class="admin-intervention-wrapper">
+                        <div class="admin-intervention-header">
+                            <input type="text" class="in-i-name input-bold" value="${inter.name}" placeholder="Nombre Intervención">
+                            <input type="text" class="in-i-desc" value="${inter.desc}" placeholder="Descripción corta">
+                            <input type="number" class="in-i-ind input-ind" value="${inter.indicator}" placeholder="%" title="Indicador Aguja">
                             <button class="btn-del" onclick="app.delIntervention(${pIdx}, ${iIdx})">🗑️</button>
                         </div>
-                        <input type="text" class="in-inter-desc" value="${inter.desc}" placeholder="Descripción Intervención">
-                        <div style="margin-top:10px;">${tasksHtml}</div>
+                        <div>${tasksHtml}</div>
                         <button class="btn-add-task" onclick="app.addTask(${pIdx}, ${iIdx})">+ Añadir Tarea</button>
                     </div>
                 `;
             });
 
             const div = document.createElement('div');
-            div.className = 'admin-card';
+            div.className = 'admin-pilar-wrapper';
             div.innerHTML = `
-                <div class="admin-header-pilar">
-                    <div style="display:flex; gap:10px; margin-bottom:5px;">
-                        <input type="text" class="in-p-title" value="${p.title}" style="font-weight:800;">
-                        <input type="text" class="in-p-icon" value="${p.icon}" style="width:80px;" placeholder="Icono">
-                        <button class="btn-del" onclick="app.delPillar(${pIdx})">×</button>
-                    </div>
+                <div class="admin-pilar-header">
+                    <div class="icon-box" style="width:36px; height:36px;"><span class="material-icons-round">${p.icon}</span></div>
+                    <input type="text" class="in-p-title input-bold" value="${p.title}" style="font-size:1rem;">
                     <input type="text" class="in-p-desc" value="${p.desc}">
+                    <input type="text" class="in-p-icon" value="${p.icon}" style="width:60px;" placeholder="Icono">
+                    <button class="btn-del" style="background:#fee2e2; border-color:#fecaca; color:#b91c1c;" onclick="app.delPillar(${pIdx})">Borrar Pilar</button>
                 </div>
-                <div style="padding:10px;">
-                    ${interventionsHtml}
-                    <button class="btn-add-inter" onclick="app.addIntervention(${pIdx})">+ Nueva Intervención</button>
-                </div>
+                ${interventionsHtml}
+                <button class="btn-add-inter" onclick="app.addIntervention(${pIdx})">+ Nueva Intervención</button>
             `;
             container.appendChild(div);
         });
     },
 
-    // --- COSECHA DE DATOS (3 NIVELES) ---
+    // --- COSECHA DE DATOS (CRÍTICO: LEE EL DOM EXACTAMENTE) ---
     harvestData: function() {
         const container = document.getElementById('admin-container');
         if(!container || container.innerHTML === "") return;
 
-        const pillarCards = container.getElementsByClassName('admin-card');
+        const pilarWrappers = container.getElementsByClassName('admin-pilar-wrapper');
         let newData = [];
 
-        Array.from(pillarCards).forEach(pCard => {
+        Array.from(pilarWrappers).forEach(pWrap => {
             let pObj = {
-                title: pCard.querySelector('.in-p-title').value,
-                desc: pCard.querySelector('.in-p-desc').value,
-                icon: pCard.querySelector('.in-p-icon').value,
+                title: pWrap.querySelector('.in-p-title').value,
+                desc: pWrap.querySelector('.in-p-desc').value,
+                icon: pWrap.querySelector('.in-p-icon').value,
                 interventions: []
             };
 
-            const interCards = pCard.getElementsByClassName('admin-intervention');
-            Array.from(interCards).forEach(iCard => {
+            const interWrappers = pWrap.getElementsByClassName('admin-intervention-wrapper');
+            Array.from(interWrappers).forEach(iWrap => {
                 let iObj = {
-                    name: iCard.querySelector('.in-inter-title').value,
-                    desc: iCard.querySelector('.in-inter-desc').value,
-                    indicator: parseFloat(iCard.querySelector('.in-inter-ind').value) || 0,
+                    name: iWrap.querySelector('.in-i-name').value,
+                    desc: iWrap.querySelector('.in-i-desc').value,
+                    indicator: parseFloat(iWrap.querySelector('.in-i-ind').value) || 0,
                     tasks: []
                 };
 
-                const taskRows = iCard.getElementsByClassName('task-edit');
+                const taskRows = iWrap.getElementsByClassName('admin-task-row');
                 Array.from(taskRows).forEach(tRow => {
                     iObj.tasks.push({
-                        name: tRow.querySelector('.in-task-name').value,
-                        ministry: tRow.querySelector('.in-task-min').value,
-                        progress: parseFloat(tRow.querySelector('.in-task-prog').value) || 0
+                        name: tRow.querySelector('.in-t-name').value,
+                        ministry: tRow.querySelector('.in-t-min').value,
+                        progress: parseFloat(tRow.querySelector('.in-t-prog').value) || 0
                     });
                 });
                 pObj.interventions.push(iObj);
@@ -296,14 +233,14 @@ const app = {
     },
 
     // --- ACCIONES CRUD ---
-    addPillar: function() { this.harvestData(); this.data.push({title:"Nuevo Pilar", desc:"...", icon:"flag", interventions:[]}); this.renderGestion(); },
-    delPillar: function(ix) { if(confirm("¿Borrar?")) { this.harvestData(); this.data.splice(ix,1); this.renderGestion(); } },
+    addPillar: function() { this.harvestData(); this.data.push({title:"Nuevo Eje", desc:"...", icon:"flag", interventions:[]}); this.renderGestion(); },
+    delPillar: function(ix) { if(confirm("¿Eliminar Pilar?")) { this.harvestData(); this.data.splice(ix,1); this.renderGestion(); } },
     
-    addIntervention: function(pIx) { this.harvestData(); this.data[pIx].interventions.push({name:"Nueva Intervención", desc:"...", indicator:0, tasks:[]}); this.renderGestion(); },
-    delIntervention: function(pIx, iIx) { this.harvestData(); this.data[pIx].interventions.splice(iIx, 1); this.renderGestion(); },
+    addIntervention: function(pix) { this.harvestData(); this.data[pix].interventions.push({name:"Nueva Intervención", desc:"...", indicator:0, tasks:[]}); this.renderGestion(); },
+    delIntervention: function(pix, iix) { this.harvestData(); this.data[pix].interventions.splice(iix,1); this.renderGestion(); },
 
-    addTask: function(pIx, iIx) { this.harvestData(); this.data[pIx].interventions[iIx].tasks.push({name:"", ministry:"", progress:0}); this.renderGestion(); },
-    delTask: function(pIx, iIx, tIx) { this.harvestData(); this.data[pIx].interventions[iIx].tasks.splice(tIx, 1); this.renderGestion(); },
+    addTask: function(pix, iix) { this.harvestData(); this.data[pix].interventions[iix].tasks.push({name:"", ministry:"", progress:0}); this.renderGestion(); },
+    delTask: function(pix, iix, tix) { this.harvestData(); this.data[pix].interventions[iix].tasks.splice(tix,1); this.renderGestion(); },
 
     // --- GUARDADO ---
     saveData: async function() {
@@ -316,7 +253,7 @@ const app = {
                 await fetch(this.config.script_url, {
                     method: 'POST', mode: 'no-cors',
                     headers: {'Content-Type': 'text/plain'},
-                    body: JSON.stringify({ cengob: this.data }) // Envía la nueva estructura
+                    body: JSON.stringify({ cengob: this.data })
                 });
                 alert("✅ Guardado Nube y Local");
             } catch(e) { console.error(e); alert("⚠️ Guardado Local (Fallo Nube)"); }
@@ -331,12 +268,8 @@ const app = {
         try {
             const res = await fetch(this.config.script_url);
             const json = await res.json();
-            if(json && json.cengob) {
-                // Adaptador si vienen datos viejos
-                this.data = json.cengob; 
-                this.renderDashboard();
-            }
-        } catch(e) { console.log("Offline/Sin Nube"); }
+            if(json && json.cengob) { this.data = json.cengob; this.renderDashboard(); }
+        } catch(e) { console.log("Offline"); }
     },
 
     // --- UTILS ---
@@ -355,27 +288,14 @@ const app = {
         this.fetchFromCloud();
     },
 
-    // --- GRAFICOS (Gauge) ---
+    // --- CHART.JS ---
     createGauge: function(id, val, isMini) {
         const ctx = document.getElementById(id);
         if(!ctx) return;
         this.charts.push(new Chart(ctx, {
             type: 'doughnut',
-            data: {
-                datasets: [{
-                    data: [val, 100-val],
-                    backgroundColor: [this.getColor(val), '#e5e7eb'],
-                    borderWidth: 0,
-                    cutout: isMini ? '70%' : '85%',
-                    circumference: 180,
-                    rotation: 270
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { tooltip: { enabled: false } }
-            }
+            data: { datasets: [{ data: [val, 100-val], backgroundColor: [this.getColor(val), '#e2e8f0'], borderWidth:0, cutout: isMini?'70%':'85%', circumference:180, rotation:270 }] },
+            options: { responsive:true, maintainAspectRatio:false, plugins:{tooltip:{enabled:false}} }
         }));
     },
     getColor: function(val) { return val < 40 ? '#ef4444' : (val < 80 ? '#f59e0b' : '#10b981'); }
