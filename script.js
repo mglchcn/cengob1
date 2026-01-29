@@ -1,18 +1,20 @@
 const app = {
-    // --- DATOS POR DEFECTO ---
+    // --- DATOS INICIALES (EJEMPLO) ---
     defaultData: [
         {
-            title: "Industrialización con Sustitución",
+            title: "Industrialización",
             icon: "factory",
             interventions: [
                 {
                     name: "Complejo Siderúrgico del Mutún",
-                    desc: "Producción de acero y laminados.",
+                    desc: "Sustitución de importaciones de acero.",
                     indicator: 85,
-                    indResultado: "Reducción importaciones 50%",
-                    indProducto: "Planta operativa Fase 1",
-                    criticalPath: "Suministro Gas",
-                    tasks: [], milestones: []
+                    indResultado: "Reducción 50% import.",
+                    indProducto: "Planta Fase 1",
+                    milestones: [
+                        {date: "15 Oct", desc: "Encendido reactor"},
+                        {date: "20 Dic", desc: "Primer laminado"}
+                    ]
                 }
             ]
         }
@@ -20,57 +22,52 @@ const app = {
 
     data: [],
     config: { script_url: localStorage.getItem('cengob_url') || '' },
-    charts: [], // Almacén de instancias Chart.js
-    
-    // Variables Carrusel
+    charts: [],
     carouselInterval: null,
-    slideTime: 10000, // 10 segundos
+    slideTime: 10000,
     currentIndex: 0,
     isCarousel: false,
 
-    // --- INICIALIZACIÓN ---
     init: function() {
-        console.log("Iniciando S.I.G.E.P...");
-        
-        // Cargar Config
         if(document.getElementById('url-script')) document.getElementById('url-script').value = this.config.script_url;
-
-        // Cargar Datos
+        
         const stored = localStorage.getItem('cengobData');
         this.data = stored ? JSON.parse(stored) : JSON.parse(JSON.stringify(this.defaultData));
-        
-        // Renderizar Inicial
-        this.renderDashboard();
-        this.updateGlobalStats();
+        this.normalizeData();
 
-        // Intentar Sync Nube si hay URL
+        this.renderDashboard();
+        this.updateGlobalKPIs();
         if(this.config.script_url) this.fetchFromCloud();
 
-        // Listeners
         document.addEventListener('keydown', (e) => {
             if(e.key === 'Escape' && this.isCarousel) this.toggleCarousel();
         });
     },
 
-    // --- VISTAS Y NAVEGACIÓN ---
-    toggleView: function(viewName) {
-        if(this.isCarousel && viewName === 'gestion') this.toggleCarousel(); // Salir de carrusel al editar
+    normalizeData: function() {
+        this.data.forEach(p => {
+            if(!p.interventions) p.interventions = [];
+            p.interventions.forEach(i => {
+                if(!i.milestones) i.milestones = []; // Asegurar que exista array
+            });
+        });
+    },
 
-        document.getElementById('view-dashboard').classList.toggle('active', viewName === 'dashboard');
-        document.getElementById('view-dashboard').classList.toggle('hidden', viewName !== 'dashboard');
+    // --- VISTAS ---
+    toggleView: function(view) {
+        if(this.isCarousel && view === 'gestion') this.toggleCarousel();
+        document.getElementById('view-dashboard').classList.toggle('active', view === 'dashboard');
+        document.getElementById('view-dashboard').classList.toggle('hidden', view !== 'dashboard');
+        document.getElementById('view-gestion').classList.toggle('active', view === 'gestion');
+        document.getElementById('view-gestion').classList.toggle('hidden', view !== 'gestion');
         
-        document.getElementById('view-gestion').classList.toggle('active', viewName === 'gestion');
-        document.getElementById('view-gestion').classList.toggle('hidden', viewName !== 'gestion');
-
-        if(viewName === 'gestion') this.renderEditor();
-        else this.renderDashboard();
+        if(view === 'gestion') this.renderEditor();
+        else { this.renderDashboard(); this.updateGlobalKPIs(); }
     },
 
-    toggleConfig: function() {
-        document.getElementById('configModal').classList.toggle('hidden');
-    },
+    toggleConfig: () => document.getElementById('configModal').classList.toggle('hidden'),
 
-    // --- MODO CARRUSEL (PRESENTACIÓN) ---
+    // --- CARRUSEL ---
     toggleCarousel: function() {
         this.isCarousel = !this.isCarousel;
         const grid = document.getElementById('view-dashboard');
@@ -81,251 +78,269 @@ const app = {
         if(this.isCarousel) {
             grid.classList.add('carousel-mode');
             dots.classList.remove('hidden');
-            btnText.innerText = "Detener";
-            btnIcon.innerText = "stop_circle";
+            btnText.innerText = "DETENER";
+            btnIcon.innerText = "stop";
             if(document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
-            this.startCarouselLoop();
+            this.startLoop();
         } else {
             grid.classList.remove('carousel-mode');
             dots.classList.add('hidden');
-            btnText.innerText = "Presentar";
-            btnIcon.innerText = "play_circle_outline";
+            btnText.innerText = "MODO PRESENTACIÓN";
+            btnIcon.innerText = "play_arrow";
             if(document.exitFullscreen) document.exitFullscreen();
-            this.stopCarouselLoop();
-            
-            // Restaurar visibilidad de todas las tarjetas
+            this.stopLoop();
             document.querySelectorAll('.pillar-card').forEach(c => c.classList.remove('active-slide'));
         }
     },
 
-    startCarouselLoop: function() {
+    startLoop: function() {
         this.currentIndex = 0;
         this.showSlide(0);
-        this.renderDots();
         this.resetTimer();
     },
 
-    stopCarouselLoop: function() {
+    stopLoop: function() {
         clearInterval(this.carouselInterval);
-        document.getElementById('time-progress-bar').style.width = '0%';
+        document.getElementById('time-bar').style.width = '0%';
     },
 
     resetTimer: function() {
         clearInterval(this.carouselInterval);
-        const bar = document.getElementById('time-progress-bar');
-        
-        // Reset animación CSS
+        const bar = document.getElementById('time-bar');
         bar.style.transition = 'none';
         bar.style.width = '0%';
-        
         setTimeout(() => {
             bar.style.transition = `width ${this.slideTime}ms linear`;
             bar.style.width = '100%';
         }, 50);
-
-        this.carouselInterval = setInterval(() => {
-            this.nextSlide();
-        }, this.slideTime);
+        this.carouselInterval = setInterval(() => this.nextSlide(), this.slideTime);
     },
 
     nextSlide: function() {
         this.currentIndex = (this.currentIndex + 1) % this.data.length;
         this.showSlide(this.currentIndex);
-        this.renderDots(); // Actualizar activo
         this.resetTimer();
     },
 
     showSlide: function(idx) {
         const cards = document.querySelectorAll('.pillar-card');
-        cards.forEach((c, i) => {
-            if(i === idx) c.classList.add('active-slide');
-            else c.classList.remove('active-slide');
-        });
-        this.currentIndex = idx;
+        cards.forEach((c, i) => i === idx ? c.classList.add('active-slide') : c.classList.remove('active-slide'));
+        this.renderDots();
     },
 
     renderDots: function() {
-        const container = document.getElementById('carousel-dots');
-        container.innerHTML = '';
+        const div = document.getElementById('carousel-dots');
+        div.innerHTML = '';
         this.data.forEach((_, i) => {
             const dot = document.createElement('div');
-            dot.className = `dot ${i === this.currentIndex ? 'active' : ''}`;
-            dot.onclick = () => { this.showSlide(i); this.renderDots(); this.resetTimer(); };
-            container.appendChild(dot);
+            dot.className = 'dot';
+            dot.style.cssText = `width:12px; height:12px; border-radius:50%; background:${i===this.currentIndex?'var(--accent)':'#555'}; cursor:pointer; transition:0.3s;`;
+            if(i===this.currentIndex) dot.style.transform = "scale(1.3)";
+            dot.onclick = () => { this.currentIndex = i; this.showSlide(i); this.resetTimer(); };
+            div.appendChild(dot);
         });
     },
 
     // --- RENDER DASHBOARD ---
     renderDashboard: function() {
         const container = document.getElementById('dashboard-grid');
-        if(!container) return;
-        
-        // Limpiar Charts Viejos
         this.charts.forEach(c => c.destroy());
         this.charts = [];
         container.innerHTML = '';
 
         this.data.forEach((p, pIdx) => {
             let sum = 0, count = 0;
-            let rowsHtml = '';
+            let intHtml = '';
 
             p.interventions.forEach((inter, iIdx) => {
                 let val = parseFloat(inter.indicator) || 0;
                 sum += val; count++;
-                
-                rowsHtml += `
-                    <div class="intervention-row">
-                        <div class="mini-chart-box">
+
+                // Generar lista de Hitos
+                let milestonesHtml = '';
+                if(inter.milestones && inter.milestones.length > 0) {
+                    milestonesHtml = `<div class="milestones-section"><div class="ms-title">Próximos Hitos</div><div class="ms-list">`;
+                    inter.milestones.forEach(m => {
+                        milestonesHtml += `
+                            <div class="ms-item">
+                                <span class="ms-date">${m.date}</span>
+                                <span class="ms-desc">${m.desc}</span>
+                            </div>`;
+                    });
+                    milestonesHtml += `</div></div>`;
+                }
+
+                intHtml += `
+                    <div class="int-card">
+                        <div class="int-chart">
                             <canvas id="chart-mini-${pIdx}-${iIdx}"></canvas>
-                            <div class="mini-val">${Math.round(val)}%</div>
+                            <div class="int-chart-val">${Math.round(val)}%</div>
                         </div>
-                        <div class="int-data">
+                        <div class="int-content">
                             <h4>${inter.name}</h4>
                             <p>${inter.desc || ''}</p>
-                            <div class="tags-row">
+                            <div class="tags">
                                 ${inter.indResultado ? `<span class="tag res">RES: ${inter.indResultado}</span>` : ''}
-                                ${inter.indProducto ? `<span class="tag">PROD: ${inter.indProducto}</span>` : ''}
-                                ${inter.criticalPath ? `<span class="tag" style="color:#f87171;border-color:#ef4444;">CRIT: ${inter.criticalPath}</span>` : ''}
+                                ${inter.indProducto ? `<span class="tag prod">PROD: ${inter.indProducto}</span>` : ''}
                             </div>
+                            ${milestonesHtml}
                         </div>
                     </div>
                 `;
             });
 
-            let pilarAvg = count > 0 ? Math.round(sum/count) : 0;
+            let avg = count > 0 ? Math.round(sum/count) : 0;
 
             const card = document.createElement('div');
             card.className = 'pillar-card';
             card.innerHTML = `
                 <div class="card-header">
-                    <div class="card-title-group">
-                        <span class="material-icons-round" style="color:var(--accent); font-size:1.5rem;">${p.icon||'flag'}</span>
-                        <h3>${p.title}</h3>
+                    <div class="header-info">
+                        <span class="material-icons-round header-icon">${p.icon}</span>
+                        <div class="header-text">
+                            <h3>${p.title}</h3>
+                        </div>
                     </div>
-                    <div class="gauge-wrapper">
+                    <div class="header-gauge">
                         <canvas id="gauge-pillar-${pIdx}"></canvas>
-                        <div class="gauge-val-abs">${pilarAvg}%</div>
+                        <div class="gauge-val">${avg}%</div>
                     </div>
                 </div>
                 <div class="card-body">
-                    ${rowsHtml || '<div style="text-align:center; padding:20px; color:#666;">Sin Intervenciones</div>'}
+                    ${intHtml || '<div style="text-align:center;color:#666;">Sin Intervenciones</div>'}
                 </div>
             `;
             container.appendChild(card);
 
-            // Crear Gráficos (IMPORTANTE: Después de insertar en DOM)
-            this.createGauge(`gauge-pillar-${pIdx}`, pilarAvg, true);
+            // Gráficos
+            this.createGauge(`gauge-pillar-${pIdx}`, avg, true);
             p.interventions.forEach((inter, iIdx) => {
                 this.createGauge(`chart-mini-${pIdx}-${iIdx}`, inter.indicator, false);
             });
         });
     },
 
-    // --- EDITOR (GESTIÓN) ---
+    // --- EDITOR CON HITOS ---
     renderEditor: function() {
         const container = document.getElementById('editor-content');
         container.innerHTML = '';
 
         this.data.forEach((p, pIdx) => {
-            let intsHtml = '';
+            let intHtml = '';
             p.interventions.forEach((inter, iIdx) => {
-                intsHtml += `
-                    <div style="border-top:1px dashed #ccc; padding-top:10px; margin-top:10px;">
-                        <div style="display:grid; grid-template-columns: 2fr 1fr auto; gap:10px;">
-                            <input type="text" value="${inter.name}" class="i-name" placeholder="Nombre Intervención">
-                            <input type="number" value="${inter.indicator}" class="i-val" placeholder="%">
-                            <button onclick="app.delItem('int', ${pIdx}, ${iIdx})" style="color:red; border:none; background:none; cursor:pointer;">×</button>
+                
+                // Generar inputs de Hitos
+                let msInputs = '';
+                (inter.milestones || []).forEach((m, mIdx) => {
+                    msInputs += `
+                        <div style="display:flex; gap:5px; margin-bottom:5px;">
+                            <input type="text" value="${m.date}" class="ms-date-in" placeholder="Fecha" style="width:30%">
+                            <input type="text" value="${m.desc}" class="ms-desc-in" placeholder="Hito">
+                            <button onclick="app.delMilestone(${pIdx}, ${iIdx}, ${mIdx})" style="color:red;border:none;background:none;cursor:pointer;">×</button>
                         </div>
-                        <input type="text" value="${inter.desc}" class="i-desc" placeholder="Descripción">
-                        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:5px;">
-                            <input type="text" value="${inter.indResultado}" class="i-res" placeholder="Ind. Resultado">
-                            <input type="text" value="${inter.indProducto}" class="i-prod" placeholder="Ind. Producto">
-                            <input type="text" value="${inter.criticalPath}" class="i-crit" placeholder="Ruta Crítica">
+                    `;
+                });
+
+                intHtml += `
+                    <div class="edit-int-row">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                            <strong>Intervención #${iIdx+1}</strong>
+                            <button class="btn-danger-icon" onclick="app.delItem('int', ${pIdx}, ${iIdx})">delete</button>
+                        </div>
+                        <div class="inp-row">
+                            <div><label>Nombre</label><input type="text" value="${inter.name}" class="i-name"></div>
+                            <div><label>% Avance</label><input type="number" value="${inter.indicator}" class="i-val"></div>
+                        </div>
+                        <div class="inp-group"><label>Descripción</label><input type="text" value="${inter.desc}" class="i-desc"></div>
+                        <div class="inp-row">
+                            <div><label>Ind. Resultado</label><input type="text" value="${inter.indResultado}" class="i-res"></div>
+                            <div><label>Ind. Producto</label><input type="text" value="${inter.indProducto}" class="i-prod"></div>
+                        </div>
+                        
+                        <div style="background:#f1f5f9; padding:10px; border-radius:6px; margin-top:10px;">
+                            <label style="margin-bottom:5px; display:block;">Hitos Clave</label>
+                            <div class="ms-container-in">${msInputs}</div>
+                            <button onclick="app.addMilestone(${pIdx}, ${iIdx})" style="font-size:0.7rem; padding:4px 8px; margin-top:5px; cursor:pointer;">+ Agregar Hito</button>
                         </div>
                     </div>
                 `;
             });
 
             const div = document.createElement('div');
-            div.className = 'editor-item';
+            div.className = 'edit-card';
             div.innerHTML = `
-                <div style="display:flex; justify-content:space-between;">
-                    <input type="text" value="${p.title}" class="p-title" style="font-weight:bold; font-size:1.1rem; width:80%;">
-                    <button onclick="app.delItem('pillar', ${pIdx})" style="color:red; background:none; border:none; cursor:pointer;">Borrar Pilar</button>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div style="width:80%"><label>Título del Pilar</label><input type="text" value="${p.title}" class="p-title" style="font-weight:bold; font-size:1.1rem;"></div>
+                    <button class="btn-danger-icon" onclick="app.delItem('pillar', ${pIdx})">delete_forever</button>
                 </div>
-                <div class="ints-container">${intsHtml}</div>
-                <button onclick="app.addItem('int', ${pIdx})" style="margin-top:10px; background:#f1f5f9; border:1px solid #ccc; padding:5px; width:100%; cursor:pointer;">+ Añadir Intervención</button>
+                ${intHtml}
+                <button onclick="app.addItem('int', ${pIdx})" style="width:100%; padding:10px; margin-top:15px; border:1px dashed #ccc; background:none; cursor:pointer;">+ Añadir Intervención</button>
             `;
             container.appendChild(div);
         });
     },
 
-    // --- COSECHA Y GUARDADO ---
+    // --- LÓGICA DE DATOS ---
     harvestData: function() {
         const container = document.getElementById('editor-content');
-        if(container.innerHTML === "") return; // Evitar borrar si no se renderizó
+        if(container.innerHTML === "") return;
 
-        const pItems = container.getElementsByClassName('editor-item');
+        const pCards = container.getElementsByClassName('edit-card');
         let newData = [];
 
-        Array.from(pItems).forEach(item => {
+        Array.from(pCards).forEach(card => {
             let pObj = {
-                title: item.querySelector('.p-title').value,
-                icon: 'flag',
+                title: card.querySelector('.p-title').value,
+                icon: "flag",
                 interventions: []
             };
-            
-            // Buscar inputs relativos a este pilar
-            const names = item.getElementsByClassName('i-name');
-            const vals = item.getElementsByClassName('i-val');
-            const descs = item.getElementsByClassName('i-desc');
-            const ress = item.getElementsByClassName('i-res');
-            const prods = item.getElementsByClassName('i-prod');
-            const crits = item.getElementsByClassName('i-crit');
 
-            for(let i=0; i<names.length; i++) {
+            const intRows = card.getElementsByClassName('edit-int-row');
+            Array.from(intRows).forEach(row => {
+                let milestones = [];
+                const msDates = row.getElementsByClassName('ms-date-in');
+                const msDescs = row.getElementsByClassName('ms-desc-in');
+                for(let k=0; k<msDates.length; k++){
+                    milestones.push({date: msDates[k].value, desc: msDescs[k].value});
+                }
+
                 pObj.interventions.push({
-                    name: names[i].value,
-                    indicator: parseFloat(vals[i].value) || 0,
-                    desc: descs[i].value,
-                    indResultado: ress[i].value,
-                    indProducto: prods[i].value,
-                    criticalPath: crits[i].value,
-                    tasks: [], milestones: []
+                    name: row.querySelector('.i-name').value,
+                    indicator: parseFloat(row.querySelector('.i-val').value) || 0,
+                    desc: row.querySelector('.i-desc').value,
+                    indResultado: row.querySelector('.i-res').value,
+                    indProducto: row.querySelector('.i-prod').value,
+                    milestones: milestones
                 });
-            }
+            });
             newData.push(pObj);
         });
         this.data = newData;
     },
 
     addPillar: function() { this.harvestData(); this.data.push({title:"Nuevo Eje", interventions:[]}); this.renderEditor(); },
-    addItem: function(type, pIdx) { this.harvestData(); this.data[pIdx].interventions.push({name:"Nueva Meta", indicator:0, desc:"", indResultado:"", indProducto:"", criticalPath:""}); this.renderEditor(); },
+    addItem: function(type, pIdx) { this.harvestData(); this.data[pIdx].interventions.push({name:"Nueva", indicator:0, milestones:[]}); this.renderEditor(); },
     delItem: function(type, pIdx, iIdx) { 
         this.harvestData();
         if(type==='pillar') { if(confirm("¿Eliminar pilar?")) this.data.splice(pIdx, 1); }
-        else { this.data[pIdx].interventions.splice(iIdx, 1); }
+        else this.data[pIdx].interventions.splice(iIdx, 1);
         this.renderEditor();
     },
+    
+    // Gestión Hitos
+    addMilestone: function(pIdx, iIdx) { this.harvestData(); this.data[pIdx].interventions[iIdx].milestones.push({date:"", desc:""}); this.renderEditor(); },
+    delMilestone: function(pIdx, iIdx, mIdx) { this.harvestData(); this.data[pIdx].interventions[iIdx].milestones.splice(mIdx, 1); this.renderEditor(); },
 
     saveData: async function() {
         this.harvestData();
         localStorage.setItem('cengobData', JSON.stringify(this.data));
-        
         if(this.config.script_url) {
             document.getElementById('loader').classList.remove('hidden');
             try {
-                await fetch(this.config.script_url, { 
-                    method: 'POST', 
-                    mode: 'no-cors', 
-                    headers: {'Content-Type': 'application/json'}, 
-                    body: JSON.stringify(this.data) 
-                });
-                alert("Guardado y Sincronizado");
-            } catch(e) { alert("Error de Conexión Nube (Guardado Local OK)"); }
+                await fetch(this.config.script_url, { method: 'POST', mode: 'no-cors', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(this.data) });
+                alert("Sincronizado");
+            } catch(e) { alert("Guardado Local (Error Nube)"); }
             document.getElementById('loader').classList.add('hidden');
-        } else {
-            alert("Guardado Localmente");
         }
         this.toggleView('dashboard');
     },
@@ -341,44 +356,22 @@ const app = {
         try {
             const res = await fetch(this.config.script_url);
             const json = await res.json();
-            if(json.data) { 
-                this.data = json.data; 
-                this.renderDashboard(); 
-                this.updateGlobalStats(); 
-            }
-        } catch(e) { console.warn("Modo Offline"); }
+            if(json.data) { this.data = json.data; this.renderDashboard(); this.updateGlobalKPIs(); }
+        } catch(e) { console.warn("Offline"); }
     },
 
-    // --- CHART JS HELPER ---
     createGauge: function(id, val, isPillar) {
         const ctx = document.getElementById(id);
         if(!ctx) return;
-
         let color = val < 50 ? '#ef4444' : (val < 80 ? '#3b82f6' : '#10b981');
-        let cutout = isPillar ? '80%' : '70%';
-
         this.charts.push(new Chart(ctx, {
             type: 'doughnut',
-            data: {
-                datasets: [{
-                    data: [val, 100-val],
-                    backgroundColor: [color, 'rgba(255,255,255,0.1)'],
-                    borderWidth: 0,
-                    borderRadius: 20
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutout: cutout,
-                circumference: 360,
-                plugins: { tooltip: { enabled: false } },
-                animation: { animateScale: true }
-            }
+            data: { datasets: [{ data: [val, 100-val], backgroundColor: [color, 'rgba(255,255,255,0.05)'], borderWidth: 0, borderRadius: 20 }] },
+            options: { responsive: true, maintainAspectRatio: false, cutout: isPillar?'85%':'75%', plugins: { tooltip: { enabled: false } }, animation: { duration: 0 } }
         }));
     },
 
-    updateGlobalStats: function() {
+    updateGlobalKPIs: function() {
         let sum = 0, count = 0, alerts = 0;
         this.data.forEach(p => p.interventions.forEach(i => {
             let v = parseFloat(i.indicator)||0;
