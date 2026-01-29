@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>S.I.G.E.P. | Tablero de Mando Presidencial</title>
+    <title>S.I.G.E.P. | Tablero Maestro</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
@@ -13,86 +13,76 @@
 
     <div id="loader" class="loading-overlay hidden">
         <div class="spinner"></div>
-        <p>Sincronizando con Sala Situacional...</p>
+        <p>Sincronizando Sistema...</p>
     </div>
 
     <nav class="navbar">
         <div class="brand">
-            <div class="brand-logo">
-                <span class="material-icons-round">account_balance</span>
-            </div>
+            <div class="brand-logo"><span class="material-icons-round">account_balance</span></div>
             <div class="brand-text">
                 <span class="brand-title">PRESIDENCIA</span>
-                <span class="brand-subtitle">TABLERO DE CONTROL DE GESTIÓN</span>
+                <span class="brand-subtitle">SALA DE SITUACIÓN NACIONAL</span>
             </div>
         </div>
         
         <div class="nav-kpis">
             <div class="mini-kpi">
-                <span class="mk-label">Ejecución Global</span>
+                <span class="mk-label">Ejecución</span>
                 <span class="mk-val" id="kpi-global">0%</span>
             </div>
             <div class="vr"></div>
             <div class="mini-kpi">
-                <span class="mk-label">Alertas Críticas</span>
+                <span class="mk-label">Alertas</span>
                 <span class="mk-val danger" id="kpi-alerts">0</span>
             </div>
         </div>
 
         <div class="nav-actions">
-            <button class="icon-btn tooltip" onclick="app.toggleCarousel()" data-tooltip="Modo Presentación (TV)">
-                <span class="material-icons-round" id="icon-play">play_circle</span>
+            <button class="btn-primary-sm" onclick="app.toggleCarousel()">
+                <span class="material-icons-round" id="icon-play">play_arrow</span>
+                <span id="text-play">Iniciar Presentación</span>
             </button>
-            
-            <button class="icon-btn" onclick="app.toggleConfig()">
-                <span class="material-icons-round">settings</span>
-            </button>
-            <button class="btn-primary-sm" onclick="app.toggleView('gestion')">
-                <span class="material-icons-round">edit_note</span> Editor
-            </button>
+            <button class="icon-btn" onclick="app.toggleConfig()"><span class="material-icons-round">settings</span></button>
+            <button class="icon-btn" onclick="app.toggleView('gestion')"><span class="material-icons-round">edit_note</span></button>
         </div>
     </nav>
 
-    <div id="configModal" class="modal hidden">
-        <div class="modal-content">
-            <h3>Conexión Nube (Google Sheets)</h3>
-            <input type="text" id="url-script" placeholder="URL del Script...">
-            <div class="modal-footer">
-                <button onclick="app.toggleConfig()" class="btn-secondary">Cancelar</button>
-                <button onclick="app.saveConfig()" class="btn-primary">Guardar Conexión</button>
-            </div>
-        </div>
-    </div>
-
     <div class="main-wrapper">
         
-        <div id="view-dashboard" class="view-section">
-            
-            <div id="carousel-status-bar" class="hidden">
-                <div class="carousel-progress"><div class="progress-bar" id="carousel-bar"></div></div>
-                <span class="carousel-label">MODO PRESENTACIÓN ACTIVO</span>
-            </div>
+        <div id="time-bar-container" class="hidden">
+            <div class="time-bar" id="time-bar"></div>
+        </div>
 
-            <div class="dashboard-grid" id="pillars-container">
+        <div id="view-dashboard" class="view-section">
+            <div class="dashboard-grid" id="pillars-container"></div>
+            
+            <div id="carousel-nav" class="carousel-nav hidden">
                 </div>
         </div>
 
         <div id="view-gestion" class="view-section hidden">
             <div class="editor-header">
-                <h2>Editor de Estrategia</h2>
-                <div class="editor-actions">
-                    <button class="btn-secondary" onclick="app.toggleView('dashboard')">Volver al Tablero</button>
-                    <button class="btn-primary" onclick="app.saveData()">
-                        <span class="material-icons-round">cloud_upload</span> Guardar Cambios
-                    </button>
-                </div>
+                <h2>Gestor de Estrategia</h2>
+                <button class="btn-primary" onclick="app.saveData()"><span class="material-icons-round">save</span> Guardar</button>
             </div>
             <div class="container-narrow">
                 <div id="admin-container" class="admin-list"></div>
-                <button class="btn-dashed-lg" onclick="app.addPillar()">+ Agregar Nuevo Pilar Estratégico</button>
+                <button class="btn-dashed-lg" onclick="app.addPillar()">+ Nuevo Pilar</button>
             </div>
+            <button class="btn-close-editor" onclick="app.toggleView('dashboard')">✕</button>
         </div>
 
+    </div>
+
+    <div id="configModal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Conexión Nube</h3>
+            <input type="text" id="url-script" placeholder="URL Google Apps Script">
+            <div class="modal-footer">
+                <button onclick="app.toggleConfig()" class="btn-secondary">Cerrar</button>
+                <button onclick="app.saveConfig()" class="btn-primary">Guardar</button>
+            </div>
+        </div>
     </div>
 
     <script src="script.js"></script>
