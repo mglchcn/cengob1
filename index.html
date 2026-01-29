@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sala Situacional</title>
+    <title>S.I.G.E.P. | Sala Situacional</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
@@ -14,7 +14,7 @@
     <div id="loader" class="loading-overlay hidden">
         <div class="loader-content">
             <div class="spinner"></div>
-            <p>CONECTANDO A BASE DE DATOS...</p>
+            <p>SINCRONIZANDO...</p>
         </div>
     </div>
 
@@ -25,7 +25,7 @@
                 <div class="logo"><span class="material-icons-round">account_balance</span></div>
                 <div class="titles">
                     <h1>PRESIDENCIA</h1>
-                    <h2>TABLERO DE MANDO ESTRATÉGICO</h2>
+                    <h2>TABLERO DE CONTROL GUBERNAMENTAL</h2>
                 </div>
             </div>
 
@@ -36,7 +36,7 @@
                 </div>
                 <div class="stat-divider"></div>
                 <div class="stat-box">
-                    <span class="label">ALERTAS CRÍTICAS</span>
+                    <span class="label">ALERTAS</span>
                     <span class="value danger" id="kpi-alerts">0</span>
                 </div>
             </div>
@@ -56,22 +56,21 @@
         <main class="content-area">
             
             <div id="view-dashboard" class="view-panel active">
-                <div id="dashboard-grid" class="cards-grid">
-                    </div>
+                <div id="dashboard-grid" class="cards-grid"></div>
                 <div id="carousel-dots" class="nav-dots hidden"></div>
             </div>
 
             <div id="view-gestion" class="view-panel hidden overlay-editor">
                 <div class="editor-layout">
                     <div class="editor-top">
-                        <h2>Editor de Estrategia</h2>
+                        <h2>Gestor de Estrategia</h2>
                         <div class="editor-actions">
                             <button class="btn-secondary" onclick="app.toggleView('dashboard')">Cancelar</button>
-                            <button class="btn-primary" onclick="app.saveData()"><span class="material-icons-round">save</span> GUARDAR CAMBIOS</button>
+                            <button class="btn-primary" onclick="app.saveData()"><span class="material-icons-round">save</span> GUARDAR</button>
                         </div>
                     </div>
                     <div id="editor-content" class="editor-scroll"></div>
-                    <button class="btn-add-pillar" onclick="app.addPillar()">+ CREAR NUEVO EJE ESTRATÉGICO</button>
+                    <button class="btn-add-pillar" onclick="app.addPillar()">+ NUEVO EJE ESTRATÉGICO</button>
                 </div>
             </div>
 
@@ -80,11 +79,11 @@
 
     <div id="configModal" class="modal-backdrop hidden">
         <div class="modal-window">
-            <h3>Conexión Nube (Google Sheets)</h3>
-            <input type="text" id="url-script" placeholder="Pegar URL del Web App Script aquí...">
+            <h3>Conexión Nube</h3>
+            <input type="text" id="url-script" placeholder="URL Web App Script...">
             <div class="modal-footer">
-                <button onclick="app.toggleConfig()" class="btn-secondary">Cancelar</button>
-                <button onclick="app.saveConfig()" class="btn-primary">Guardar Conexión</button>
+                <button onclick="app.toggleConfig()" class="btn-secondary">Cerrar</button>
+                <button onclick="app.saveConfig()" class="btn-primary">Guardar</button>
             </div>
         </div>
     </div>
