@@ -3,77 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>S.I.G.E.P. | Sala Situacional</title>
+    <title>Sala Situacional</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
     <div id="loader" class="loading-overlay hidden">
-        <div class="spinner"></div>
-        <div style="margin-top:15px; font-weight:600; letter-spacing:1px;">SINCRONIZANDO...</div>
+        <div class="loader-content">
+            <div class="spinner"></div>
+            <p>CONECTANDO A BASE DE DATOS...</p>
+        </div>
     </div>
 
     <div class="app-layout">
         
         <header class="navbar">
-            <div class="brand-box">
-                <div class="logo-icon"><span class="material-icons-round">account_balance</span></div>
-                <div class="logo-text">
-                    <span class="title">PRESIDENCIA</span>
-                    <span class="subtitle">TABLERO DE MANDO INTEGRAL</span>
+            <div class="brand">
+                <div class="logo"><span class="material-icons-round">account_balance</span></div>
+                <div class="titles">
+                    <h1>PRESIDENCIA</h1>
+                    <h2>TABLERO DE MANDO ESTRATÉGICO</h2>
                 </div>
             </div>
 
-            <div class="header-kpis">
-                <div class="kpi-item">
-                    <span class="kpi-label">EJECUCIÓN GLOBAL</span>
-                    <span class="kpi-value" id="kpi-global">0%</span>
+            <div class="header-stats">
+                <div class="stat-box">
+                    <span class="label">EJECUCIÓN GLOBAL</span>
+                    <span class="value" id="kpi-global">0%</span>
                 </div>
-                <div class="separator"></div>
-                <div class="kpi-item">
-                    <span class="kpi-label">ALERTAS</span>
-                    <span class="kpi-value danger" id="kpi-alerts">0</span>
+                <div class="stat-divider"></div>
+                <div class="stat-box">
+                    <span class="label">ALERTAS CRÍTICAS</span>
+                    <span class="value danger" id="kpi-alerts">0</span>
                 </div>
             </div>
 
-            <div class="nav-controls">
-                <button class="btn-action" onclick="app.toggleCarousel()">
-                    <span class="material-icons-round" id="btn-play-icon">play_circle_outline</span>
-                    <span id="btn-play-text">Presentar</span>
+            <div class="controls">
+                <button class="btn-hero" onclick="app.toggleCarousel()">
+                    <span class="material-icons-round" id="btn-play-icon">play_arrow</span>
+                    <span id="btn-play-text">MODO PRESENTACIÓN</span>
                 </button>
-                <button class="btn-icon" onclick="app.toggleConfig()" title="Configuración"><span class="material-icons-round">settings</span></button>
-                <button class="btn-icon" onclick="app.toggleView('gestion')" title="Editar Datos"><span class="material-icons-round">edit</span></button>
+                <button class="btn-icon" onclick="app.toggleConfig()"><span class="material-icons-round">settings</span></button>
+                <button class="btn-icon" onclick="app.toggleView('gestion')"><span class="material-icons-round">edit</span></button>
             </div>
         </header>
 
-        <div id="time-progress-bar" class="time-bar"></div>
+        <div id="time-bar" class="time-bar"></div>
 
         <main class="content-area">
             
             <div id="view-dashboard" class="view-panel active">
                 <div id="dashboard-grid" class="cards-grid">
                     </div>
-                
                 <div id="carousel-dots" class="nav-dots hidden"></div>
             </div>
 
             <div id="view-gestion" class="view-panel hidden overlay-editor">
-                <div class="editor-container">
-                    <div class="editor-header">
-                        <h2>Gestión de Estrategia</h2>
+                <div class="editor-layout">
+                    <div class="editor-top">
+                        <h2>Editor de Estrategia</h2>
                         <div class="editor-actions">
-                            <button class="btn-cancel" onclick="app.toggleView('dashboard')">Cancelar</button>
-                            <button class="btn-save" onclick="app.saveData()"><span class="material-icons-round">save</span> Guardar Cambios</button>
+                            <button class="btn-secondary" onclick="app.toggleView('dashboard')">Cancelar</button>
+                            <button class="btn-primary" onclick="app.saveData()"><span class="material-icons-round">save</span> GUARDAR CAMBIOS</button>
                         </div>
                     </div>
-                    
-                    <div id="editor-content" class="editor-scroll-area">
-                        </div>
-                    
-                    <button class="btn-add-big" onclick="app.addPillar()">+ AGREGAR NUEVO PILAR ESTRATÉGICO</button>
+                    <div id="editor-content" class="editor-scroll"></div>
+                    <button class="btn-add-pillar" onclick="app.addPillar()">+ CREAR NUEVO EJE ESTRATÉGICO</button>
                 </div>
             </div>
 
@@ -82,12 +80,11 @@
 
     <div id="configModal" class="modal-backdrop hidden">
         <div class="modal-window">
-            <h3>Conexión a Base de Datos</h3>
-            <p>URL del Google Apps Script (JSON)</p>
-            <input type="text" id="url-script" placeholder="https://script.google.com/macros/s/...">
-            <div class="modal-btns">
-                <button onclick="app.toggleConfig()" class="btn-cancel">Cerrar</button>
-                <button onclick="app.saveConfig()" class="btn-save">Guardar Conexión</button>
+            <h3>Conexión Nube (Google Sheets)</h3>
+            <input type="text" id="url-script" placeholder="Pegar URL del Web App Script aquí...">
+            <div class="modal-footer">
+                <button onclick="app.toggleConfig()" class="btn-secondary">Cancelar</button>
+                <button onclick="app.saveConfig()" class="btn-primary">Guardar Conexión</button>
             </div>
         </div>
     </div>
