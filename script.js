@@ -1,136 +1,129 @@
 const app = {
-    // --- CONFIGURACIÓN ---
-    slideTime: 10000, // Tiempo por slide en ms (10 seg)
-    
+    // --- DATOS POR DEFECTO ---
     defaultData: [
         {
-            title: "Industrialización",
+            title: "Industrialización con Sustitución",
             icon: "factory",
             interventions: [
                 {
-                    name: "Planta de Biodiesel 1",
-                    desc: "Sustitución de diésel importado.",
-                    indicator: 92,
-                    indResultado: "Reducción $50M import",
-                    indProducto: "1 Planta Operativa",
-                    criticalPath: "Pruebas de Carga",
+                    name: "Complejo Siderúrgico del Mutún",
+                    desc: "Producción de acero y laminados.",
+                    indicator: 85,
+                    indResultado: "Reducción importaciones 50%",
+                    indProducto: "Planta operativa Fase 1",
+                    criticalPath: "Suministro Gas",
                     tasks: [], milestones: []
                 }
             ]
         }
     ],
 
-    data: [], 
+    data: [],
     config: { script_url: localStorage.getItem('cengob_url') || '' },
-    charts: [],
+    charts: [], // Almacén de instancias Chart.js
     
     // Variables Carrusel
     carouselInterval: null,
-    timerInterval: null,
+    slideTime: 10000, // 10 segundos
     currentIndex: 0,
     isCarousel: false,
-    timeLeft: 0,
 
+    // --- INICIALIZACIÓN ---
     init: function() {
-        if(document.getElementById('url-script')) document.getElementById('url-script').value = this.config.script_url;
+        console.log("Iniciando S.I.G.E.P...");
         
+        // Cargar Config
+        if(document.getElementById('url-script')) document.getElementById('url-script').value = this.config.script_url;
+
+        // Cargar Datos
         const stored = localStorage.getItem('cengobData');
         this.data = stored ? JSON.parse(stored) : JSON.parse(JSON.stringify(this.defaultData));
-        this.normalizeData();
-
+        
+        // Renderizar Inicial
         this.renderDashboard();
-        this.updateGlobalKPIs();
+        this.updateGlobalStats();
+
+        // Intentar Sync Nube si hay URL
         if(this.config.script_url) this.fetchFromCloud();
 
-        // Teclado
+        // Listeners
         document.addEventListener('keydown', (e) => {
             if(e.key === 'Escape' && this.isCarousel) this.toggleCarousel();
-            if(this.isCarousel) {
-                if(e.key === 'ArrowRight') this.nextSlide();
-                if(e.key === 'ArrowLeft') this.prevSlide();
-            }
         });
     },
 
-    normalizeData: function() {
-        this.data.forEach(p => {
-            if(!p.interventions) p.interventions = [];
-            p.interventions.forEach(i => {
-                if(!i.indName) i.indName = "Avance";
-            });
-        });
+    // --- VISTAS Y NAVEGACIÓN ---
+    toggleView: function(viewName) {
+        if(this.isCarousel && viewName === 'gestion') this.toggleCarousel(); // Salir de carrusel al editar
+
+        document.getElementById('view-dashboard').classList.toggle('active', viewName === 'dashboard');
+        document.getElementById('view-dashboard').classList.toggle('hidden', viewName !== 'dashboard');
+        
+        document.getElementById('view-gestion').classList.toggle('active', viewName === 'gestion');
+        document.getElementById('view-gestion').classList.toggle('hidden', viewName !== 'gestion');
+
+        if(viewName === 'gestion') this.renderEditor();
+        else this.renderDashboard();
     },
 
-    toggleView: function(view) {
-        if(this.isCarousel) this.toggleCarousel();
-        document.getElementById('view-dashboard').classList.toggle('hidden', view === 'gestion');
-        document.getElementById('view-gestion').classList.toggle('hidden', view !== 'gestion');
-        if(view === 'gestion') this.renderGestion();
-        else { this.renderDashboard(); this.updateGlobalKPIs(); }
+    toggleConfig: function() {
+        document.getElementById('configModal').classList.toggle('hidden');
     },
 
-    toggleConfig: () => document.getElementById('configModal').classList.toggle('hidden'),
-
-    // --- LÓGICA DE CARRUSEL ---
+    // --- MODO CARRUSEL (PRESENTACIÓN) ---
     toggleCarousel: function() {
         this.isCarousel = !this.isCarousel;
-        const container = document.getElementById('view-dashboard');
-        const nav = document.getElementById('carousel-nav');
-        const timeContainer = document.getElementById('time-bar-container');
-        const btnText = document.getElementById('text-play');
-        const btnIcon = document.getElementById('icon-play');
+        const grid = document.getElementById('view-dashboard');
+        const dots = document.getElementById('carousel-dots');
+        const btnText = document.getElementById('btn-play-text');
+        const btnIcon = document.getElementById('btn-play-icon');
 
         if(this.isCarousel) {
-            container.classList.add('carousel-mode');
-            nav.classList.remove('hidden');
-            timeContainer.classList.remove('hidden');
+            grid.classList.add('carousel-mode');
+            dots.classList.remove('hidden');
             btnText.innerText = "Detener";
-            btnIcon.innerText = "stop";
-            // Pantalla completa
+            btnIcon.innerText = "stop_circle";
             if(document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
-            
-            this.startCarousel();
+            this.startCarouselLoop();
         } else {
-            container.classList.remove('carousel-mode');
-            nav.classList.add('hidden');
-            timeContainer.classList.add('hidden');
-            btnText.innerText = "Iniciar Presentación";
-            btnIcon.innerText = "play_arrow";
+            grid.classList.remove('carousel-mode');
+            dots.classList.add('hidden');
+            btnText.innerText = "Presentar";
+            btnIcon.innerText = "play_circle_outline";
             if(document.exitFullscreen) document.exitFullscreen();
+            this.stopCarouselLoop();
             
-            this.stopCarousel();
-            // Restaurar vista grid
+            // Restaurar visibilidad de todas las tarjetas
             document.querySelectorAll('.pillar-card').forEach(c => c.classList.remove('active-slide'));
         }
     },
 
-    startCarousel: function() {
+    startCarouselLoop: function() {
         this.currentIndex = 0;
-        this.renderNavDots();
         this.showSlide(0);
+        this.renderDots();
         this.resetTimer();
     },
 
-    stopCarousel: function() {
-        clearInterval(this.timerInterval);
-        document.getElementById('time-bar').style.width = '100%';
+    stopCarouselLoop: function() {
+        clearInterval(this.carouselInterval);
+        document.getElementById('time-progress-bar').style.width = '0%';
     },
 
     resetTimer: function() {
-        clearInterval(this.timerInterval);
-        const bar = document.getElementById('time-bar');
+        clearInterval(this.carouselInterval);
+        const bar = document.getElementById('time-progress-bar');
         
-        // Reset visual de barra
+        // Reset animación CSS
         bar.style.transition = 'none';
-        bar.style.width = '100%'; // Lleno
+        bar.style.width = '0%';
         
-        // Pequeño delay para permitir que el DOM se pinte lleno antes de vaciar
         setTimeout(() => {
             bar.style.transition = `width ${this.slideTime}ms linear`;
-            bar.style.width = '0%'; // Vaciar
+            bar.style.width = '100%';
         }, 50);
 
-        this.timerInterval = setInterval(() => {
+        this.carouselInterval = setInterval(() => {
             this.nextSlide();
         }, this.slideTime);
     },
@@ -138,185 +131,264 @@ const app = {
     nextSlide: function() {
         this.currentIndex = (this.currentIndex + 1) % this.data.length;
         this.showSlide(this.currentIndex);
+        this.renderDots(); // Actualizar activo
         this.resetTimer();
-    },
-    
-    prevSlide: function() {
-        this.currentIndex = (this.currentIndex - 1 + this.data.length) % this.data.length;
-        this.showSlide(this.currentIndex);
-        this.resetTimer();
-    },
-
-    goToSlide: function(idx) {
-        this.currentIndex = idx;
-        this.showSlide(idx);
-        this.resetTimer(); // Reiniciar tiempo al hacer click manual
     },
 
     showSlide: function(idx) {
         const cards = document.querySelectorAll('.pillar-card');
-        cards.forEach((c, i) => c.classList.toggle('active-slide', i === idx));
-        
-        // Actualizar puntos
-        const dots = document.querySelectorAll('.nav-dot');
-        dots.forEach((d, i) => {
-            d.classList.toggle('active', i === idx);
+        cards.forEach((c, i) => {
+            if(i === idx) c.classList.add('active-slide');
+            else c.classList.remove('active-slide');
         });
+        this.currentIndex = idx;
     },
 
-    renderNavDots: function() {
-        const nav = document.getElementById('carousel-nav');
-        nav.innerHTML = '';
-        this.data.forEach((_, idx) => {
+    renderDots: function() {
+        const container = document.getElementById('carousel-dots');
+        container.innerHTML = '';
+        this.data.forEach((_, i) => {
             const dot = document.createElement('div');
-            dot.className = 'nav-dot';
-            dot.onclick = () => app.goToSlide(idx);
-            nav.appendChild(dot);
+            dot.className = `dot ${i === this.currentIndex ? 'active' : ''}`;
+            dot.onclick = () => { this.showSlide(i); this.renderDots(); this.resetTimer(); };
+            container.appendChild(dot);
         });
     },
 
     // --- RENDER DASHBOARD ---
     renderDashboard: function() {
-        const container = document.getElementById('pillars-container');
+        const container = document.getElementById('dashboard-grid');
         if(!container) return;
-        container.innerHTML = '';
+        
+        // Limpiar Charts Viejos
         this.charts.forEach(c => c.destroy());
         this.charts = [];
+        container.innerHTML = '';
 
         this.data.forEach((p, pIdx) => {
-            let pilarSum = 0, count = 0;
-            let interventionsHtml = '';
-            
-            p.interventions.forEach((inter, iIdx) => {
-                pilarSum += parseFloat(inter.indicator) || 0;
-                count++;
-                
-                let tags = '';
-                if(inter.indResultado) tags += `<span class="tag res">RES: ${inter.indResultado}</span>`;
-                if(inter.indProducto) tags += `<span class="tag prod">PROD: ${inter.indProducto}</span>`;
-                if(inter.criticalPath) tags += `<span class="tag crit">CRIT: ${inter.criticalPath}</span>`;
+            let sum = 0, count = 0;
+            let rowsHtml = '';
 
-                interventionsHtml += `
-                    <div class="int-row">
-                        <div class="int-chart">
-                            <canvas id="chart-p${pIdx}-i${iIdx}"></canvas>
-                            <div class="int-val-center">${inter.indicator}%</div>
+            p.interventions.forEach((inter, iIdx) => {
+                let val = parseFloat(inter.indicator) || 0;
+                sum += val; count++;
+                
+                rowsHtml += `
+                    <div class="intervention-row">
+                        <div class="mini-chart-box">
+                            <canvas id="chart-mini-${pIdx}-${iIdx}"></canvas>
+                            <div class="mini-val">${Math.round(val)}%</div>
                         </div>
-                        <div class="int-details">
+                        <div class="int-data">
                             <h4>${inter.name}</h4>
-                            <p>${inter.desc || 'Sin descripción'}</p>
-                            <div class="strategic-tags">${tags}</div>
+                            <p>${inter.desc || ''}</p>
+                            <div class="tags-row">
+                                ${inter.indResultado ? `<span class="tag res">RES: ${inter.indResultado}</span>` : ''}
+                                ${inter.indProducto ? `<span class="tag">PROD: ${inter.indProducto}</span>` : ''}
+                                ${inter.criticalPath ? `<span class="tag" style="color:#f87171;border-color:#ef4444;">CRIT: ${inter.criticalPath}</span>` : ''}
+                            </div>
                         </div>
                     </div>
                 `;
             });
 
-            const pilarAvg = count > 0 ? Math.round(pilarSum / count) : 0;
-            
+            let pilarAvg = count > 0 ? Math.round(sum/count) : 0;
+
             const card = document.createElement('div');
             card.className = 'pillar-card';
             card.innerHTML = `
-                <div class="p-header">
-                    <div style="display:flex; align-items:center;">
-                        <span class="material-icons-round p-icon">${p.icon}</span>
-                        <div class="p-title-box">
-                            <h3>${p.title}</h3>
-                        </div>
+                <div class="card-header">
+                    <div class="card-title-group">
+                        <span class="material-icons-round" style="color:var(--accent); font-size:1.5rem;">${p.icon||'flag'}</span>
+                        <h3>${p.title}</h3>
                     </div>
-                    <div style="width:70px; height:70px; position:relative; display:grid; place-items:center;">
-                         <canvas id="gauge-pillar-${pIdx}"></canvas>
-                         <div style="position:absolute; font-weight:800; color:white;">${pilarAvg}%</div>
+                    <div class="gauge-wrapper">
+                        <canvas id="gauge-pillar-${pIdx}"></canvas>
+                        <div class="gauge-val-abs">${pilarAvg}%</div>
                     </div>
                 </div>
-                <div class="p-body">
-                    ${interventionsHtml || '<div style="text-align:center;color:#666;">Sin datos</div>'}
+                <div class="card-body">
+                    ${rowsHtml || '<div style="text-align:center; padding:20px; color:#666;">Sin Intervenciones</div>'}
                 </div>
             `;
             container.appendChild(card);
 
+            // Crear Gráficos (IMPORTANTE: Después de insertar en DOM)
             this.createGauge(`gauge-pillar-${pIdx}`, pilarAvg, true);
             p.interventions.forEach((inter, iIdx) => {
-                this.createGauge(`chart-p${pIdx}-i${iIdx}`, inter.indicator, false);
+                this.createGauge(`chart-mini-${pIdx}-${iIdx}`, inter.indicator, false);
             });
         });
     },
 
-    // --- GRÁFICOS (Chart.js) ---
+    // --- EDITOR (GESTIÓN) ---
+    renderEditor: function() {
+        const container = document.getElementById('editor-content');
+        container.innerHTML = '';
+
+        this.data.forEach((p, pIdx) => {
+            let intsHtml = '';
+            p.interventions.forEach((inter, iIdx) => {
+                intsHtml += `
+                    <div style="border-top:1px dashed #ccc; padding-top:10px; margin-top:10px;">
+                        <div style="display:grid; grid-template-columns: 2fr 1fr auto; gap:10px;">
+                            <input type="text" value="${inter.name}" class="i-name" placeholder="Nombre Intervención">
+                            <input type="number" value="${inter.indicator}" class="i-val" placeholder="%">
+                            <button onclick="app.delItem('int', ${pIdx}, ${iIdx})" style="color:red; border:none; background:none; cursor:pointer;">×</button>
+                        </div>
+                        <input type="text" value="${inter.desc}" class="i-desc" placeholder="Descripción">
+                        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:5px;">
+                            <input type="text" value="${inter.indResultado}" class="i-res" placeholder="Ind. Resultado">
+                            <input type="text" value="${inter.indProducto}" class="i-prod" placeholder="Ind. Producto">
+                            <input type="text" value="${inter.criticalPath}" class="i-crit" placeholder="Ruta Crítica">
+                        </div>
+                    </div>
+                `;
+            });
+
+            const div = document.createElement('div');
+            div.className = 'editor-item';
+            div.innerHTML = `
+                <div style="display:flex; justify-content:space-between;">
+                    <input type="text" value="${p.title}" class="p-title" style="font-weight:bold; font-size:1.1rem; width:80%;">
+                    <button onclick="app.delItem('pillar', ${pIdx})" style="color:red; background:none; border:none; cursor:pointer;">Borrar Pilar</button>
+                </div>
+                <div class="ints-container">${intsHtml}</div>
+                <button onclick="app.addItem('int', ${pIdx})" style="margin-top:10px; background:#f1f5f9; border:1px solid #ccc; padding:5px; width:100%; cursor:pointer;">+ Añadir Intervención</button>
+            `;
+            container.appendChild(div);
+        });
+    },
+
+    // --- COSECHA Y GUARDADO ---
+    harvestData: function() {
+        const container = document.getElementById('editor-content');
+        if(container.innerHTML === "") return; // Evitar borrar si no se renderizó
+
+        const pItems = container.getElementsByClassName('editor-item');
+        let newData = [];
+
+        Array.from(pItems).forEach(item => {
+            let pObj = {
+                title: item.querySelector('.p-title').value,
+                icon: 'flag',
+                interventions: []
+            };
+            
+            // Buscar inputs relativos a este pilar
+            const names = item.getElementsByClassName('i-name');
+            const vals = item.getElementsByClassName('i-val');
+            const descs = item.getElementsByClassName('i-desc');
+            const ress = item.getElementsByClassName('i-res');
+            const prods = item.getElementsByClassName('i-prod');
+            const crits = item.getElementsByClassName('i-crit');
+
+            for(let i=0; i<names.length; i++) {
+                pObj.interventions.push({
+                    name: names[i].value,
+                    indicator: parseFloat(vals[i].value) || 0,
+                    desc: descs[i].value,
+                    indResultado: ress[i].value,
+                    indProducto: prods[i].value,
+                    criticalPath: crits[i].value,
+                    tasks: [], milestones: []
+                });
+            }
+            newData.push(pObj);
+        });
+        this.data = newData;
+    },
+
+    addPillar: function() { this.harvestData(); this.data.push({title:"Nuevo Eje", interventions:[]}); this.renderEditor(); },
+    addItem: function(type, pIdx) { this.harvestData(); this.data[pIdx].interventions.push({name:"Nueva Meta", indicator:0, desc:"", indResultado:"", indProducto:"", criticalPath:""}); this.renderEditor(); },
+    delItem: function(type, pIdx, iIdx) { 
+        this.harvestData();
+        if(type==='pillar') { if(confirm("¿Eliminar pilar?")) this.data.splice(pIdx, 1); }
+        else { this.data[pIdx].interventions.splice(iIdx, 1); }
+        this.renderEditor();
+    },
+
+    saveData: async function() {
+        this.harvestData();
+        localStorage.setItem('cengobData', JSON.stringify(this.data));
+        
+        if(this.config.script_url) {
+            document.getElementById('loader').classList.remove('hidden');
+            try {
+                await fetch(this.config.script_url, { 
+                    method: 'POST', 
+                    mode: 'no-cors', 
+                    headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify(this.data) 
+                });
+                alert("Guardado y Sincronizado");
+            } catch(e) { alert("Error de Conexión Nube (Guardado Local OK)"); }
+            document.getElementById('loader').classList.add('hidden');
+        } else {
+            alert("Guardado Localmente");
+        }
+        this.toggleView('dashboard');
+    },
+
+    saveConfig: function() {
+        this.config.script_url = document.getElementById('url-script').value;
+        localStorage.setItem('cengob_url', this.config.script_url);
+        this.toggleConfig();
+        this.fetchFromCloud();
+    },
+
+    fetchFromCloud: async function() {
+        try {
+            const res = await fetch(this.config.script_url);
+            const json = await res.json();
+            if(json.data) { 
+                this.data = json.data; 
+                this.renderDashboard(); 
+                this.updateGlobalStats(); 
+            }
+        } catch(e) { console.warn("Modo Offline"); }
+    },
+
+    // --- CHART JS HELPER ---
     createGauge: function(id, val, isPillar) {
         const ctx = document.getElementById(id);
         if(!ctx) return;
-        let color = val < 40 ? '#ef4444' : (val < 80 ? '#3b82f6' : '#22c55e'); // Rojo / Azul / Verde
-        
+
+        let color = val < 50 ? '#ef4444' : (val < 80 ? '#3b82f6' : '#10b981');
+        let cutout = isPillar ? '80%' : '70%';
+
         this.charts.push(new Chart(ctx, {
             type: 'doughnut',
-            data: { 
-                datasets: [{ 
-                    data: [val, 100-val], 
-                    backgroundColor: [color, '#333333'], 
-                    borderWidth: 0, borderRadius: 20 
-                }] 
+            data: {
+                datasets: [{
+                    data: [val, 100-val],
+                    backgroundColor: [color, 'rgba(255,255,255,0.1)'],
+                    borderWidth: 0,
+                    borderRadius: 20
+                }]
             },
-            options: { 
-                responsive: true, maintainAspectRatio: false, 
-                cutout: isPillar ? '85%' : '80%', 
-                circumference: 360, 
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: cutout,
+                circumference: 360,
                 plugins: { tooltip: { enabled: false } },
-                animation: { duration: 0 } // Desactivar animación inicial para rendimiento
+                animation: { animateScale: true }
             }
         }));
     },
 
-    // --- GESTIÓN DE DATOS (EDITOR) ---
-    // (Funciones CRUD básicas reutilizadas de versiones anteriores)
-    renderGestion: function() {
-        const container = document.getElementById('admin-container');
-        container.innerHTML = '';
-        this.data.forEach((p, pIdx) => {
-            let intHtml = '';
-            p.interventions.forEach((i, iIdx) => {
-                intHtml += `
-                <div style="background:white; padding:15px; margin-bottom:10px; border-left:3px solid #3b82f6;">
-                    <input type="text" value="${i.name}" class="in-i-name" placeholder="Nombre">
-                    <input type="number" value="${i.indicator}" class="in-i-ind" placeholder="%">
-                    <input type="text" value="${i.indResultado}" class="in-i-res" placeholder="Resultado">
-                    <button onclick="app.delItem('int', ${pIdx}, ${iIdx})" style="color:red; margin-top:5px;">Eliminar</button>
-                </div>`;
-            });
-            const div = document.createElement('div');
-            div.className = 'admin-pilar-wrapper';
-            div.innerHTML = `<input type="text" value="${p.title}" class="in-p-title" style="font-weight:bold; font-size:1.1rem; margin-bottom:10px;">
-                             ${intHtml}
-                             <button onclick="app.addItem('int', ${pIdx})">+ Intervención</button>
-                             <button onclick="app.delItem('pillar', ${pIdx})" style="float:right; color:red;">Borrar Pilar</button>`;
-            container.appendChild(div);
-        });
-    },
-    
-    harvestData: function() {
-        const container = document.getElementById('admin-container');
-        const pWrappers = container.getElementsByClassName('admin-pilar-wrapper');
-        let newData = [];
-        Array.from(pWrappers).forEach(pWrap => {
-            let p = { title: pWrap.querySelector('.in-p-title').value, icon: "flag", interventions: [] };
-            // Lógica simplificada de recolección... (expandir según necesidad)
-            newData.push(p);
-        });
-        // Nota: Para mantener el código corto aquí, usa la lógica harvest completa dada anteriormente
-    },
-
-    addPillar: function() { this.data.push({title:"Nuevo", icon:"flag", interventions:[]}); this.renderGestion(); },
-    addItem: function(type, pIdx) { this.data[pIdx].interventions.push({name:"Nueva", indicator:0}); this.renderGestion(); },
-    delItem: function(type, pIdx, iIdx) { 
-        if(type=='pillar') this.data.splice(pIdx, 1);
-        else this.data[pIdx].interventions.splice(iIdx, 1);
-        this.renderGestion();
-    },
-    saveData: async function() {
-        // Lógica de guardado igual a la versión anterior
-        localStorage.setItem('cengobData', JSON.stringify(this.data));
-        this.toggleView('dashboard');
-    },
-    updateGlobalKPIs: function() { /* Calculo promedio simple */ }
+    updateGlobalStats: function() {
+        let sum = 0, count = 0, alerts = 0;
+        this.data.forEach(p => p.interventions.forEach(i => {
+            let v = parseFloat(i.indicator)||0;
+            sum += v; count++;
+            if(v < 50) alerts++;
+        }));
+        let avg = count > 0 ? Math.round(sum/count) : 0;
+        document.getElementById('kpi-global').innerText = avg + "%";
+        document.getElementById('kpi-alerts').innerText = alerts;
+    }
 };
 
 document.addEventListener('DOMContentLoaded', () => app.init());
