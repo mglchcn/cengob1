@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>S.I.G.E.P. | Tablero Maestro</title>
+    <title>S.I.G.E.P. | Sala Situacional</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
@@ -13,74 +13,81 @@
 
     <div id="loader" class="loading-overlay hidden">
         <div class="spinner"></div>
-        <p>Sincronizando Sistema...</p>
+        <div style="margin-top:15px; font-weight:600; letter-spacing:1px;">SINCRONIZANDO...</div>
     </div>
 
-    <nav class="navbar">
-        <div class="brand">
-            <div class="brand-logo"><span class="material-icons-round">account_balance</span></div>
-            <div class="brand-text">
-                <span class="brand-title">PRESIDENCIA</span>
-                <span class="brand-subtitle">SALA DE SITUACIÓN NACIONAL</span>
-            </div>
-        </div>
+    <div class="app-layout">
         
-        <div class="nav-kpis">
-            <div class="mini-kpi">
-                <span class="mk-label">Ejecución</span>
-                <span class="mk-val" id="kpi-global">0%</span>
-            </div>
-            <div class="vr"></div>
-            <div class="mini-kpi">
-                <span class="mk-label">Alertas</span>
-                <span class="mk-val danger" id="kpi-alerts">0</span>
-            </div>
-        </div>
-
-        <div class="nav-actions">
-            <button class="btn-primary-sm" onclick="app.toggleCarousel()">
-                <span class="material-icons-round" id="icon-play">play_arrow</span>
-                <span id="text-play">Iniciar Presentación</span>
-            </button>
-            <button class="icon-btn" onclick="app.toggleConfig()"><span class="material-icons-round">settings</span></button>
-            <button class="icon-btn" onclick="app.toggleView('gestion')"><span class="material-icons-round">edit_note</span></button>
-        </div>
-    </nav>
-
-    <div class="main-wrapper">
-        
-        <div id="time-bar-container" class="hidden">
-            <div class="time-bar" id="time-bar"></div>
-        </div>
-
-        <div id="view-dashboard" class="view-section">
-            <div class="dashboard-grid" id="pillars-container"></div>
-            
-            <div id="carousel-nav" class="carousel-nav hidden">
+        <header class="navbar">
+            <div class="brand-box">
+                <div class="logo-icon"><span class="material-icons-round">account_balance</span></div>
+                <div class="logo-text">
+                    <span class="title">PRESIDENCIA</span>
+                    <span class="subtitle">TABLERO DE MANDO INTEGRAL</span>
                 </div>
-        </div>
-
-        <div id="view-gestion" class="view-section hidden">
-            <div class="editor-header">
-                <h2>Gestor de Estrategia</h2>
-                <button class="btn-primary" onclick="app.saveData()"><span class="material-icons-round">save</span> Guardar</button>
             </div>
-            <div class="container-narrow">
-                <div id="admin-container" class="admin-list"></div>
-                <button class="btn-dashed-lg" onclick="app.addPillar()">+ Nuevo Pilar</button>
-            </div>
-            <button class="btn-close-editor" onclick="app.toggleView('dashboard')">✕</button>
-        </div>
 
+            <div class="header-kpis">
+                <div class="kpi-item">
+                    <span class="kpi-label">EJECUCIÓN GLOBAL</span>
+                    <span class="kpi-value" id="kpi-global">0%</span>
+                </div>
+                <div class="separator"></div>
+                <div class="kpi-item">
+                    <span class="kpi-label">ALERTAS</span>
+                    <span class="kpi-value danger" id="kpi-alerts">0</span>
+                </div>
+            </div>
+
+            <div class="nav-controls">
+                <button class="btn-action" onclick="app.toggleCarousel()">
+                    <span class="material-icons-round" id="btn-play-icon">play_circle_outline</span>
+                    <span id="btn-play-text">Presentar</span>
+                </button>
+                <button class="btn-icon" onclick="app.toggleConfig()" title="Configuración"><span class="material-icons-round">settings</span></button>
+                <button class="btn-icon" onclick="app.toggleView('gestion')" title="Editar Datos"><span class="material-icons-round">edit</span></button>
+            </div>
+        </header>
+
+        <div id="time-progress-bar" class="time-bar"></div>
+
+        <main class="content-area">
+            
+            <div id="view-dashboard" class="view-panel active">
+                <div id="dashboard-grid" class="cards-grid">
+                    </div>
+                
+                <div id="carousel-dots" class="nav-dots hidden"></div>
+            </div>
+
+            <div id="view-gestion" class="view-panel hidden overlay-editor">
+                <div class="editor-container">
+                    <div class="editor-header">
+                        <h2>Gestión de Estrategia</h2>
+                        <div class="editor-actions">
+                            <button class="btn-cancel" onclick="app.toggleView('dashboard')">Cancelar</button>
+                            <button class="btn-save" onclick="app.saveData()"><span class="material-icons-round">save</span> Guardar Cambios</button>
+                        </div>
+                    </div>
+                    
+                    <div id="editor-content" class="editor-scroll-area">
+                        </div>
+                    
+                    <button class="btn-add-big" onclick="app.addPillar()">+ AGREGAR NUEVO PILAR ESTRATÉGICO</button>
+                </div>
+            </div>
+
+        </main>
     </div>
 
-    <div id="configModal" class="modal hidden">
-        <div class="modal-content">
-            <h3>Conexión Nube</h3>
-            <input type="text" id="url-script" placeholder="URL Google Apps Script">
-            <div class="modal-footer">
-                <button onclick="app.toggleConfig()" class="btn-secondary">Cerrar</button>
-                <button onclick="app.saveConfig()" class="btn-primary">Guardar</button>
+    <div id="configModal" class="modal-backdrop hidden">
+        <div class="modal-window">
+            <h3>Conexión a Base de Datos</h3>
+            <p>URL del Google Apps Script (JSON)</p>
+            <input type="text" id="url-script" placeholder="https://script.google.com/macros/s/...">
+            <div class="modal-btns">
+                <button onclick="app.toggleConfig()" class="btn-cancel">Cerrar</button>
+                <button onclick="app.saveConfig()" class="btn-save">Guardar Conexión</button>
             </div>
         </div>
     </div>
